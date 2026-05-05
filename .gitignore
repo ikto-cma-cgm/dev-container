@@ -1,0 +1,11 @@
+# Secrets — ne jamais commiter
+.env
+
+# Dépendances Node
+node_modules/
+
+# Historique aider (ancien assistant)
+.aider.*
+
+# Sessions opencode
+.opencode/sessions/

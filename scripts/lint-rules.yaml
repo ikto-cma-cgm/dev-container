@@ -1,0 +1,78 @@
+## Service Standards — Linter Rules Configuration
+## This file is the source of truth for the rules enforced by lint-templates.mjs.
+## Modify this file to add/remove valid types, tags, or change thresholds.
+## No JavaScript changes needed for configuration updates.
+
+identity:
+  # R01 — metadata.name must end with this suffix, in kebab-case
+  nameSuffix: '-template'
+
+  # R03 — metadata.description max length
+  maxDescriptionLength: 200
+
+  # R05 — allowed values for spec.type
+  validTypes:
+    - service
+    - website
+    - pipeline
+    - testing-tool
+    - code-analysis
+    - action
+
+  # R06 — at least one of these tags must be present
+  categoryTags:
+    - application
+    - integration
+    - quality
+    - action
+
+  # R07 — these tags are not allowed
+  forbiddenTags:
+    - one-click
+    - golden-path
+    - demo
+    - advanced
+    - simple
+
+parameters:
+  # R08-R10 — these parameters are required (skipped for action templates)
+  requiredParams:
+    - name
+    - description
+    - owner
+
+  # R10 — the owner parameter must use this UI field
+  ownerField: EntityPicker
+
+  # R08-R10 — template types that skip parameter rules
+  skipParamRulesForTypes:
+    - action
+
+skeleton:
+  # R12, R15 — these files must exist in skeleton/
+  requiredFiles:
+    - catalog-info.yaml
+    - README.md
+
+  # R13 — these annotations must be present in skeleton/catalog-info.yaml
+  requiredAnnotations:
+    - backstage.io/techdocs-ref
+
+  # R14 — expected lifecycle value
+  lifecycle: experimental
+
+  # R16 — expressions with these prefixes are allowed in skeleton files
+  allowedExpressionPrefixes:
+    - 'values.'
+    - 'parameters.'
+    - 'steps['
+    - 'steps.'
+    - 'secrets.'
+    - 'env.'
+    - 'github.'
+    - 'matrix.'
+    - "'${"
+    - '"https'
+    - '"http'
+    - "'' |"
+    - '"" |'

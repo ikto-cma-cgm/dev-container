@@ -1,0 +1,49 @@
+// Un devcontainer.json est le "passeport" de ton environnement de développement.
+// VS Code le lit et construit automatiquement un container Docker configuré exactement
+// comme décrit ici — même machine, même résultat, pour tout le monde.
+{
+  "name": "Backstage Template Creator",
+
+  // Image Docker de base : Node.js 20 sur Debian Bookworm.
+  // Microsoft maintient ces images "dev-ready" : git, zsh, et les outils système sont déjà là.
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20-bookworm",
+
+  // Exécuté une seule fois à la création du container.
+  // Installe les outils de développement : Backstage CLI, Yarn, et opencode (assistant IA CLI).
+  "postCreateCommand": "npm install -g opencode-ai @ai-sdk/openai-compatible @backstage/cli yarn && cd scripts && npm install && cd ..",
+
+  // Exécuté à chaque démarrage du container.
+  // Lit le .env et génère ~/.config/opencode/opencode.json — opencode est alors prêt sans aucune config manuelle.
+  "postStartCommand": "bash .devcontainer/setup.sh",
+
+  // Tout ce qui concerne VS Code spécifiquement.
+  "customizations": {
+    "vscode": {
+      // Extensions installées automatiquement dans le container.
+      "extensions": [
+        // Assistant IA intégré — se connecte au modèle configuré dans .env
+        "sst-dev.opencode",
+        // Validation YAML avec schémas JSON Schema (erreurs inline)
+        "redhat.vscode-yaml",
+        // Syntax highlighting pour Nunjucks (le langage de templating de Backstage)
+        "ronnidc.nunjucks"
+      ],
+      "settings": {
+        // Associe le schéma officiel Backstage aux fichiers catalog-info.yaml.
+        // => VS Code valide la structure et propose de l'autocompletion.
+        "yaml.schemas": {
+          "https://json.schemastore.org/catalog-info.json": "**/catalog-info.yaml"
+        }
+      }
+    }
+  },
+
+  // Ports du container exposés sur ta machine hôte.
+  // Si tu lances une app Backstage locale pour tester un template,
+  // tu pourras y accéder via http://localhost:3000 et http://localhost:7007.
+  "forwardPorts": [3000, 7007],
+  "portsAttributes": {
+    "3000": { "label": "Backstage Frontend" },
+    "7007": { "label": "Backstage Backend" }
+  }
+}

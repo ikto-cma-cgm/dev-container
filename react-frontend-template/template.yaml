@@ -1,0 +1,120 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: react-frontend-template
+  title: React Frontend
+  description: Scaffolds a React 19 + TypeScript SPA with Vite, Tailwind CSS, React Router, TanStack Query, and Vitest. Production-ready frontend for CMA CGM Developer Portal.
+  tags:
+    - application
+    - react
+    - typescript
+    - vite
+    - frontend
+spec:
+  owner: group:platform-team
+  type: service
+  steps:
+    - id: fetch-skeleton
+      name: Fetch skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          system: ${{ parameters.system }}
+          domain: ${{ parameters.domain }}
+
+    - id: install-dependencies
+      name: Install dependencies
+      action: filesystem:run-script
+      input:
+        workingDirectory: ${{ steps['fetch-skeleton'].output.path }}
+        run: npm install
+
+    - id: publish-repo
+      name: Publish repository
+      action: publish:github
+      input:
+        allowedHosts: ['github.com']
+        repoUrl: github.com?owner=cma-cgm&repo=${{ parameters.name }}
+        description: ${{ parameters.description }}
+
+    - id: register-catalog
+      name: Register in catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish-repo'].output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+
+  parameters:
+    - title: Service identity
+      required:
+        - name
+        - description
+        - owner
+      properties:
+        name:
+          title: Service name
+          type: string
+          pattern: '^[a-z][a-z0-9-]*[a-z0-9]$'
+          description: Kebab-case name for the frontend application
+          ui:help: 'Kebab-case, unique dans le Catalog. Ex: customer-portal-frontend'
+        description:
+          title: Description
+          type: string
+          description: Une phrase décrivant l'application frontend
+          ui:help: 'Une phrase décrivant le service. Apparaîtra dans le Catalog.'
+        owner:
+          title: Owner
+          type: string
+          description: Équipe responsable du service
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              - kind: Group
+          ui:help: 'Équipe responsible. Sera paginée en cas d''incident.'
+
+    - title: Catalog placement
+      required:
+        - system
+        - domain
+      properties:
+        system:
+          title: System
+          type: string
+          description: System Backstage du service
+          ui:help: 'System Backstage auquel ce service appartient. Ex: digital-channel'
+        domain:
+          title: Domain
+          type: string
+          description: Domain métier
+          ui:help: 'Domain métier. Ex: customer-experience, platform, shipping'
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps['publish-repo'].output.remoteUrl }}
+      - title: Open in Catalog
+        icon: catalog
+        url: ${{ steps['register-catalog'].output.entityRef }}
+    text:
+      - title: Next Steps
+        content: |
+          Application React **${{ parameters.name }}** créée avec succès.
+
+          Stack technique :
+          - React 19 + TypeScript + Vite
+          - Tailwind CSS pour le styling
+          - React Router v7 pour le routing
+          - TanStack Query pour le state server-side
+          - Vitest + Testing Library pour les tests
+
+          1. Clone : `git clone ${{ steps['publish-repo'].output.remoteUrl }}`
+          2. Install : `npm install`
+          3. Démarre : `npm run dev`
+          4. Tests : `npm test`
+          5. Build prod : `npm run build`
+          6. Configure les secrets dans le repo Settings
+          7. Le pipeline CI démarre automatiquement sur le premier push

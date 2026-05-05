@@ -1,0 +1,9 @@
+apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+  name: dev-container-templates
+  namespace: default
+  description: Templates en cours de développement dans le dev container CMA CGM
+spec:
+  targets:
+    - ./**/template.yaml
