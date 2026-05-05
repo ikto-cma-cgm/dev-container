@@ -34,15 +34,32 @@ Commence par :
 >
 > Je m'occupe de les remplir avec un contenu fonctionnel, des tests, et la documentation."
 
-### 1.4 — Paramètres spécifiques au service
+### 1.4 — Degré de configurabilité
+
+> "Avant de lister les paramètres, une question clé sur l'expérience développeur que tu veux offrir.
+>
+> **Quel degré de flexibilité le développeur qui utilise ce template aura-t-il ?**
+>
+> | Mode | Ce que le développeur choisit | Quand l'utiliser |
+> |------|-------------------------------|-----------------|
+> | **Opinioné** | Nom, description, owner, placement Catalog uniquement. Tout le reste est fixé par toi (version, port, features…). | Standards stricts, onboarding rapide, formulaire court. |
+> | **Standard** | Base + 2 à 5 choix techniques importants (ex: version du runtime, type de DB). Les options avancées restent fixes. | Cas le plus courant — bon équilibre flexibilité / cohérence. |
+> | **Flexible** | La plupart des choix sont paramétrables : version, port, features optionnelles (auth, monitoring…), intégrations. | Équipes aux besoins très variés, template multi-usage. |
+>
+> Quel mode correspond le mieux à ton besoin ?"
+
+### 1.5 — Paramètres spécifiques au service
 
 > "En dehors des champs standards (name, description, owner), quels paramètres propres à ce service le développeur devra-t-il choisir ?
 >
-> Pense à : version du langage, port, base de données, région, visibilité du repo, activation du CI, etc.
+> **Calibre ta réponse au mode choisi :**
+> - Mode **Opinioné** → aucun paramètre supplémentaire, tu fixes tout toi-même
+> - Mode **Standard** → liste les 2 à 5 choix vraiment importants (ex: version Node, type de DB)
+> - Mode **Flexible** → liste tous les choix pertinents, y compris les features optionnelles (booléens)
 >
-> Liste-les même grossièrement — on précisera ensemble."
+> Pense à : version du langage, port, base de données, région, visibilité du repo, activation du CI, etc."
 
-### 1.5 — CI/CD et infrastructure
+### 1.6 — CI/CD et infrastructure
 
 > "Le template doit-il inclure :
 > - Un pipeline CI/CD ? (GitHub Actions, Jenkins…)
@@ -50,7 +67,7 @@ Commence par :
 > - Des fichiers d'infrastructure ? (Helm, Terraform, k8s manifests…)
 > - Des scripts de démarrage ou de test ?"
 
-### 1.6 — Repo Git du template
+### 1.7 — Repo Git du template
 
 > "Le template lui-même sera hébergé dans un repo Git (distinct des services qu'il génère). C'est l'URL de ce repo qui sera utilisée lors de la registration EUP.
 >
@@ -117,7 +134,8 @@ Avant de générer quoi que ce soit, présente un récapitulatif :
 > **Le service généré**
 > - Stack : `<langage/framework>`
 > - Fichiers skeleton : `<liste complète incluant tests et docs>`
-> - Paramètres : name, description, owner, system, domain + `<paramètres spécifiques>`
+> - **Configurabilité** : `<Opinioné | Standard | Flexible>` — `<résumé de ce que le développeur peut choisir>`
+> - Paramètres exposés : name, description, owner, system, domain + `<paramètres spécifiques selon le mode>`
 > - CI/CD : `<Jenkins, GitHub Actions, ou aucun>`
 >
 > C'est bon ?"
@@ -404,7 +422,34 @@ Après la TechDocs :
 
 ## Phase 6 — Générer `template.yaml`
 
-Une fois le skeleton validé, génère `template.yaml`. Les paramètres **doivent inclure system et domain** pour que le consumer puisse placer son service dans la hiérarchie Catalog :
+Une fois le skeleton validé, génère `template.yaml` en adaptant le nombre de paramètres au **mode de configurabilité** choisi en Phase 1.4.
+
+### Règles par mode
+
+**Mode Opinioné** — paramètres minimaux uniquement :
+- Exposés : `name`, `description`, `owner`, `system`, `domain`
+- Tout le reste est hardcodé dans le skeleton (version, port, features…)
+- Avantage : formulaire à 5 champs, onboarding ultra-rapide
+
+**Mode Standard** — base + choix techniques essentiels :
+- Exposés : base + les 2 à 5 paramètres identifiés en Phase 1.5
+- Exemple : `nodeVersion`, `databaseType`, `enableDocker`
+- Pas de conditionnels complexes dans le skeleton
+
+**Mode Flexible** — paramètres étendus avec sections conditionnelles :
+- Exposés : base + tous les choix pertinents + features optionnelles (booléens)
+- Utilise `if:` dans le skeleton pour les sections conditionnelles :
+  ```
+  ${{ if values.enableAuth }}
+  // code d'authentification
+  ${{ endif }}
+  ```
+- Dans `template.yaml`, groupe les features optionnelles avec `ui:widget: checkbox`
+- Documente le formulaire avec `ui:help` sur chaque paramètre
+
+---
+
+Les paramètres **doivent inclure system et domain** pour que le consumer puisse placer son service dans la hiérarchie Catalog :
 
 ```yaml
 parameters:
