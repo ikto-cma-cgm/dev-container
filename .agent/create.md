@@ -7,7 +7,10 @@ Un template a **deux couches** — tu traites toujours le service d'abord, la pl
 - **Le skeleton** — les fichiers du service généré (code, tests, CI/CD, docs) : la valeur réelle pour le développeur
 - **Le wrapper** — `template.yaml` + catalog files : la plomberie Backstage qui orchestre la génération
 
-**Règle d'or : une question à la fois. Attends la réponse. Puis pose la suivante.**
+**Règles d'or :**
+- **Une question à la fois. Attends la réponse. Puis pose la suivante.**
+- **Tu demandes TOUT ce dont tu as besoin pour générer du code complet et fonctionnel — tu ne fais jamais d'hypothèse sans avoir posé la question.** Si l'utilisateur veut que tu avances avec tes propres choix, il le dira explicitement (ex: "génère directement", "fais avec tes defaults", "skip les questions"). Tant qu'il ne le dit pas, tu continues à demander.
+- Si une réponse est vague, reformule et repose la question — un skeleton généré sur des hypothèses incorrectes crée de la dette immédiatement.
 
 ---
 
@@ -48,7 +51,52 @@ Commence par :
 >
 > Quel mode correspond le mieux à ton besoin ?"
 
-### 1.5 — Paramètres spécifiques au service
+### 1.5 — Sécurité et authentification
+
+> "Le service exposera-t-il des endpoints sécurisés ?
+>
+> - **Authentification** : aucune, JWT, OAuth2/OIDC, API Key, mTLS ?
+> - **Autorisation** : RBAC, scopes, rôles métier ?
+> - **CORS** : quelles origines sont autorisées ?
+> - **Rate limiting** : oui/non ? seuil ?
+> - **HTTPS** : le service gère-t-il le TLS lui-même ou est-ce délégué à un ingress/reverse proxy ?
+>
+> Ces choix impactent directement le code du skeleton — j'ai besoin de réponses précises."
+
+### 1.6 — Dépendances et intégrations externes
+
+> "Quelles dépendances externes le service va-t-il utiliser ?
+>
+> - **Base de données** : quel type (PostgreSQL, MySQL, MongoDB, Redis…) ? ORM ou client natif ? Migrations incluses ?
+> - **Messaging / queues** : Kafka, RabbitMQ, SQS… ?
+> - **APIs tierces** : quels services externes appellera-t-il ? (ex: service de géolocalisation, ERP, autre microservice)
+> - **Object storage** : S3, MinIO… ?
+>
+> Pour chaque dépendance : donne-moi le type exact, la version si tu la connais, et comment la connexion est configurée (env var, config file…)."
+
+### 1.7 — Observabilité et configuration runtime
+
+> "Comment le service doit-il s'observer et se configurer ?
+>
+> - **Logs** : format JSON structuré ? Quel niveau par défaut (info/debug) ? Quels champs obligatoires (traceId, serviceVersion…) ?
+> - **Métriques** : Prometheus endpoint `/metrics` ? Quelles métriques custom (requêtes, latence, erreurs métier) ?
+> - **Tracing** : OpenTelemetry ? Jaeger ? Zipkin ?
+> - **Variables d'environnement** : liste complète des env vars dont le service a besoin (nom, description, obligatoire/optionnel, valeur par défaut). Ex: `DATABASE_URL`, `PORT`, `LOG_LEVEL`, `API_TIMEOUT`…
+> - **Health checks** : `/health` et `/ready` distincts ? Que doivent-ils vérifier (DB, deps externes) ?"
+
+### 1.8 — Déploiement et environnements
+
+> "Comment et où le service sera-t-il déployé ?
+>
+> - **Cible** : Kubernetes ? Docker Compose ? bare metal ?
+> - **Environnements** : dev / staging / prod ? Des configs différentes par environnement ?
+> - **Port exposé** : quel port par défaut ?
+> - **Ressources** : contraintes CPU/mémoire à préconfigurer dans les manifests Kubernetes ?
+> - **Stratégie de déploiement** : rolling update, blue/green, canary ?
+>
+> Ces infos servent à générer le Dockerfile, les manifests Helm/k8s, et les configs d'environnement."
+
+### 1.9 — Paramètres spécifiques au service
 
 > "En dehors des champs standards (name, description, owner), quels paramètres propres à ce service le développeur devra-t-il choisir ?
 >
@@ -59,22 +107,24 @@ Commence par :
 >
 > Pense à : version du langage, port, base de données, région, visibilité du repo, activation du CI, etc."
 
-### 1.6 — CI/CD et infrastructure
+### 1.10 — CI/CD et infrastructure
 
 > "Le template doit-il inclure :
-> - Un pipeline CI/CD ? (GitHub Actions, Jenkins…)
-> - Un Dockerfile ?
-> - Des fichiers d'infrastructure ? (Helm, Terraform, k8s manifests…)
-> - Des scripts de démarrage ou de test ?"
+> - Un pipeline CI/CD ? (GitHub Actions, Jenkins…) — quelles étapes : lint, test, build, push, deploy ?
+> - Un Dockerfile ? Multi-stage (build + runtime) ou simple ?
+> - Des fichiers d'infrastructure ? (Helm chart, Terraform, k8s manifests…)
+> - Des scripts de démarrage ou de test ?
+> - Des secrets à gérer dans le pipeline (Docker registry, kubeconfig…) ?"
 
-### 1.7 — Repo Git du template
+### 1.11 — Repo Git du template
 
 > "Le template lui-même sera hébergé dans un repo Git (distinct des services qu'il génère). C'est l'URL de ce repo qui sera utilisée lors de la registration EUP.
 >
 > - **Organisation GitHub** : `cma-cgm` ou autre ?
-> - **Nom du repo** : souvent identique au nom du template, ex: `nodejs-service-template`
+> - **Nom du repo** : souvent identique au nom du template (ex: `nodejs-service-template`)
+> - **Visibilité** : privé ou public ?
 >
-> Si le repo n'existe pas encore, on le créera à la fin. Si tu n'as pas encore ces infos, indique-le — on y reviendra."
+> Si le repo n'existe pas encore, on le créera à la fin. Dis-moi l'organisation et le nom pour que je l'inclue dans le récapitulatif."
 
 ---
 
@@ -89,7 +139,10 @@ Le Catalog est organisé en **Domains → Systems → Components**. Chaque servi
 > - **Domain** — la zone métier ou technique (ex: `finance`, `shipping`, `platform`)
 > - **System** — le groupement de services qui forment une capacité cohérente (ex: `pricing`, `tracking`)
 >
-> Si tu ne sais pas encore, les consommateurs du template le choisiront dans le formulaire. Je les ajouterai comme paramètres."
+> Si le domain/system est connu à l'avance (template très ciblé) → je le fixe dans le skeleton.
+> Si chaque développeur choisira son propre placement → je les expose comme paramètres dans le formulaire.
+>
+> Quelle situation correspond au tien ?"
 
 ### 2.2 — Intégrations CI/CD pour le Catalog
 
@@ -120,7 +173,7 @@ Le Catalog est organisé en **Domains → Systems → Components**. Chaque servi
 
 Avant de générer quoi que ce soit, présente un récapitulatif :
 
-> "Voici ce que j'ai compris. Dis-moi si je dois corriger quelque chose :
+> "Voici ce que j'ai compris. Dis-moi si je dois corriger quelque chose avant que je génère :
 >
 > **Le template**
 > - Nom : `<purpose>-template`
@@ -129,14 +182,19 @@ Avant de générer quoi que ce soit, présente un récapitulatif :
 > - Owner : `group:<équipe>`
 > - Type : `<spec.type>`
 > - Tag catégorie : `<application|integration|quality|action>`
-> - Repo Git du template : `github.com/<org>/<nom-du-template>`
+> - Repo Git du template : `github.com/<org>/<nom-du-template>` (`<visibilité>`)
 >
 > **Le service généré**
-> - Stack : `<langage/framework>`
-> - Fichiers skeleton : `<liste complète incluant tests et docs>`
+> - Stack : `<langage/framework/version>`
 > - **Configurabilité** : `<Opinioné | Standard | Flexible>` — `<résumé de ce que le développeur peut choisir>`
 > - Paramètres exposés : name, description, owner, system, domain + `<paramètres spécifiques selon le mode>`
-> - CI/CD : `<Jenkins, GitHub Actions, ou aucun>`
+> - **Sécurité** : `<aucune auth | JWT | OAuth2/OIDC | API Key>`, CORS `<origines>`, rate limiting `<oui/non>`
+> - **Dépendances** : `<DB type/ORM>`, `<messaging>`, `<APIs externes>`
+> - **Variables d'environnement** : `<liste des env vars avec leur rôle>`
+> - **Observabilité** : logs `<format>`, métriques `<Prometheus/non>`, tracing `<oui/non>`
+> - **Déploiement** : `<cible>`, port `<port>`, environnements `<dev/staging/prod>`
+> - CI/CD : `<GitHub Actions/Jenkins>` — étapes : `<lint, test, build, push, deploy>`
+> - Fichiers skeleton : `<liste complète incluant code, tests, config qualité, CI/CD, docs, infra>`
 >
 > C'est bon ?"
 
