@@ -106,9 +106,60 @@ SERVICE GENERATED
 
 ## Phase 3 — Generate skeleton files
 
-Once the user confirms the recap, generate each file in full. No descriptions. No summaries. Complete file content ready to use.
+IMPORTANT: The skeleton/ directory IS the service. It must contain every file a developer would find in a real production repository: source code, tests, config files, Dockerfile, CI/CD pipeline, documentation. It is NOT limited to Backstage metadata files (catalog-info.yaml, mkdocs.yml, README.md). Those are a small part of the skeleton, not the whole thing.
 
-Generate in this order. After each file, ask "Does this look right? Adjustments before the next file?"
+The Phase 3 output is NOT complete until the skeleton contains at minimum:
+- A working entry point (src/index.js, main.go, main.py, src/main/Application.java, or equivalent)
+- At least one route/handler file with real business logic
+- At least one service/use-case file
+- A dependency manifest (package.json, go.mod, requirements.txt, pom.xml…) with all imports declared
+- A test file covering the main route (not just a placeholder)
+- A Dockerfile
+- A CI pipeline file
+
+Reference directory tree for a Node.js service (adapt for other stacks):
+
+```
+skeleton/
+  src/
+    index.js              <- entry point: Express app setup + graceful shutdown
+    app.js                <- Express instance, middleware registration, routes mount
+    routes/
+      health.js           <- GET /health and GET /ready
+      <resource>.js       <- business routes (e.g. orders.js, quotes.js)
+    services/
+      <resource>Service.js  <- business logic, no HTTP knowledge
+    middleware/
+      errorHandler.js     <- centralized Express error middleware
+      auth.js             <- JWT/API key validation (if auth enabled)
+    config/
+      index.js            <- typed config from env vars with validation
+  src/__tests__/
+    health.test.js
+    app.test.js
+    <resource>.test.js
+  package.json            <- all deps declared, scripts: start, dev, test, lint
+  jest.config.js
+  .eslintrc.js
+  .prettierrc
+  .nvmrc
+  .editorconfig
+  Dockerfile              <- multi-stage: builder + slim runtime
+  .dockerignore
+  .github/
+    workflows/
+      ci.yml              <- lint -> test -> build -> push
+  catalog-info.yaml
+  README.md
+  mkdocs.yml
+  docs/
+    index.md
+    architecture.md
+    api.md
+    operations.md
+```
+
+Generate every file listed above. Write the full file content — not a description of what to write, not a placeholder, the actual code. After each file ask "Does this look right? Adjustments before the next file?"
 
 ### 3.1 — Source code
 
