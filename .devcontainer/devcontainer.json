@@ -8,6 +8,10 @@
   // Microsoft maintient ces images "dev-ready" : git, zsh, et les outils système sont déjà là.
   "image": "mcr.microsoft.com/devcontainers/javascript-node:20-bookworm",
 
+  // Exécuté sur ton Mac avant que le container démarre.
+  // Démarre le proxy socat en arrière-plan si VLLM_HOST est défini dans .env.
+  "initializeCommand": "bash .devcontainer/start-proxy-host.sh",
+
   // Exécuté une seule fois à la création du container.
   // Installe les outils de développement : Backstage CLI, Yarn, et opencode (assistant IA CLI).
   "postCreateCommand": "npm install -g opencode-ai @ai-sdk/openai-compatible @backstage/cli yarn && cd scripts && npm install && cd ..",

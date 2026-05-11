@@ -8,15 +8,36 @@ A template has two layers — always treat service content first, Backstage wiri
 - Skeleton: the actual service files (code, tests, CI/CD, docs) — this is the core value
 - Wrapper: template.yaml + catalog-info.yaml — Backstage orchestration
 
+## Blocking invariants — these rules CANNOT be violated under any circumstance
+
+**⛔ THE SKELETON IS THE SERVICE — NOT METADATA**
+
+The `skeleton/` directory must contain a **complete, runnable application**: source code, tests, Dockerfile, CI pipeline, quality config files, and documentation. It is NOT just `catalog-info.yaml` + `README.md`. If the skeleton is empty or contains only Backstage metadata files, **STOP — do not proceed to Phase 4**.
+
+**⛔ DO NOT skip ahead phases.** Each phase has explicit completion criteria. You MUST verify the criteria are met before moving on.
+
+**⛔ NEVER move past Phase 3 until the skeleton contains ALL of the following (checklist, not guidelines):**
+- [ ] Entry point file (e.g., `src/index.js`, `main.py`, `main.go`, `src/main/Application.java`)
+- [ ] At least one route/handler with real business logic
+- [ ] At least one service/use-case layer file
+- [ ] Dependency manifest (`package.json`, `requirements.txt`, `go.mod`, `pom.xml`…)
+- [ ] At least one test file that runs and passes
+- [ ] Dockerfile
+- [ ] CI pipeline file
+- [ ] `catalog-info.yaml`, `README.md`, `mkdocs.yml`, `docs/index.md`
+
+**If any item above is unchecked, YOU ARE NOT DONE. Generate the missing files before continuing.**
+
 ## Invariant rules
 
 1. One question per turn. Wait for the answer before asking the next.
 2. Collect all required information before generating any file. Never assume a value without asking first.
-   Only exception: user explicitly says "skip", "use defaults", or "generate directly".
+    Only exception: user explicitly says "skip", "use defaults", or "generate directly".
 3. If an answer is vague, restate your understanding and ask for confirmation.
 4. Generate complete file contents — never descriptions, never summaries, never stubs or TODOs.
 5. Tests must pass on the generated skeleton from day one. Do not generate tests that fail on the initial code.
 6. Every ${{ values.xxx }} in the skeleton must have a matching entry passed via the fetch-skeleton step in template.yaml.
+7. After generating each skeleton file, verify it was written successfully before moving to the next file.
 
 ---
 
@@ -159,7 +180,17 @@ skeleton/
     operations.md
 ```
 
-Generate every file listed above. Write the full file content — not a description of what to write, not a placeholder, the actual code. After each file ask "Does this look right? Adjustments before the next file?"
+## HOW TO EXECUTE PHASE 3 — CRITICAL
+
+**You must follow this exact sequence. Do NOT jump ahead.**
+
+1. Print the full file list with estimated count (minimum 14 files). Tell the user: "Phase 3: I will generate N skeleton files. Starting with source code."
+2. **Generate ONE file at a time.** Write the file using the Write tool, then confirm: "File X/N written: `<path>`. Continuing with next file."
+3. Maintain a running counter. After each file: "X/N files complete."
+4. When counter reaches N, print the completed checklist and verify every file exists before moving to Phase 4.
+5. **You MUST stop and generate missing files if the counter is below N when you reach the Phase 3 Completion Check.**
+
+Generate every file listed above. Write the full file content — not a description of what to write, not a placeholder, the actual code.
 
 ### 3.1 — Source code
 
@@ -334,9 +365,35 @@ docs/operations.md (runbook): /health and /ready expected responses, critical en
 
 ---
 
+## PHASE 3 COMPLETION CHECK — DO NOT SKIP
+
+Before moving to Phase 4, verify EVERY item below. This is a HARD GATE — if any item is missing, generate it NOW.
+
+```
+SKELETON FILE CHECKLIST (ALL MUST BE PRESENT):
+□ src/ entry point (e.g. index.js, main.py)
+□ src/ route/handler with business logic
+□ src/ service/use-case file
+□ Dependency manifest (package.json, requirements.txt, etc.)
+□ Test file(s) 
+□ Dockerfile
+□ CI pipeline (.github/workflows/ci.yml or Jenkinsfile)
+□ skeleton/catalog-info.yaml
+□ skeleton/README.md
+□ skeleton/mkdocs.yml
+□ skeleton/docs/index.md
+□ skeleton/docs/architecture.md
+□ skeleton/docs/api.md
+□ skeleton/docs/operations.md
+```
+
+Count the actual files you wrote in skeleton/. If fewer than 14 files, you are missing something. **Generate what's missing before continuing.**
+
+---
+
 ## Phase 4 — Generate template.yaml
 
-Once the skeleton is validated, generate template.yaml adapting the number of parameters to the configurability level.
+Once the skeleton is complete (checklist above verified, every item checked), generate template.yaml adapting the number of parameters to the configurability level.
 
 Opiniated: expose name, description, owner, system, domain only. Everything else hardcoded in the skeleton.
 
@@ -397,16 +454,19 @@ Applied rules: R01, R02, R03, R04, R05, R06, R07, R08, R09, R10, R11, R17, R18, 
 
 ## Phase 5 — Verification
 
-Run these checks silently. Report only problems.
+FIRST — physically verify every skeleton file exists on disk by listing all files in the skeleton/ directory. Count them. If fewer than 14 files, **STOP** and generate the missing files before continuing this phase.
 
-1. Skeleton coherence: every ${{ values.xxx }} in every skeleton file is present in fetch-skeleton values.
-2. Tests validity: no missing import, no missing package entry, tests coherent with source code.
-3. 19-rule compliance: flag any violation.
-4. CMA CGM compliance in skeleton/catalog-info.yaml:
-   - spec.system and spec.domain present with ${{ values.xxx }}
-   - annotations.backstage.io/techdocs-ref: dir:.
-   - lifecycle: experimental
-   - metadata.links contains at least the repo link
+Then run these checks. Report only problems:
+
+1. File count: list skeleton/ recursively, confirm ≥ 14 files
+2. Skeleton coherence: every ${{ values.xxx }} in every skeleton file is present in fetch-skeleton values.
+3. Tests validity: no missing import, no missing package entry, tests coherent with source code.
+4. 19-rule compliance: flag any violation.
+5. CMA CGM compliance in skeleton/catalog-info.yaml:
+    - spec.system and spec.domain present with ${{ values.xxx }}
+    - annotations.backstage.io/techdocs-ref: dir:.
+    - lifecycle: experimental
+    - metadata.links contains at least the repo link
 
 If everything is clean, report:
 

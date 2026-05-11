@@ -164,9 +164,25 @@ Pour chaque champ manquant, explique l'impact opérationnel :
 >
 > "**jenkins.io/job-full-name** : cette annotation relie la page Catalog du service à son pipeline Jenkins. Sans elle, l'onglet CI n'apparaît pas — les développeurs ne peuvent pas voir l'état des builds depuis le portail."
 
-### Documentation et skeleton
+### Skeleton — contenu minimum obligatoire
 
-> "Je vérifie le contenu des fichiers skeleton…"
+> "Je vérifie que le skeleton contient un projet fonctionnel (pas seulement des fichiers Backstage)…"
+
+```
+□ Fichier d'entrée (src/index.js, main.py, main.go, Application.java…)
+□ Fichier route/handler avec logique métier
+□ Fichier service/use-case
+□ Manifeste de dépendances (package.json, requirements.txt, pom.xml…)
+□ Fichier de test
+□ Dockerfile
+□ Pipeline CI (ci.yml, Jenkinsfile…)
+□ catalog-info.yaml
+□ README.md
+□ mkdocs.yml
+□ docs/index.md + docs/architecture.md
+```
+
+Si moins de 10 fichiers dans skeleton, c'est un échec bloquant.
 
 - [ ] `skeleton/README.md` contient nom, description, how-to-start, variables d'env
 - [ ] `skeleton/mkdocs.yml` présent (sinon l'onglet Docs n'apparaît pas)

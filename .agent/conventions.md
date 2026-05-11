@@ -183,6 +183,17 @@ parameters:
 
 ---
 
+## Templates autonomes — feuille blanche
+
+Chaque nouveau template de service **doit partir d'une feuille blanche**. Le `fetch:template` step doit **toujours** utiliser `url: ./skeleton` et pointer vers le skeleton local du template.
+
+**Interdit** :
+- Référencer le skeleton d'un autre template (ex: `url: ../../nodejs-service-template/skeleton`)
+- Utiliser l'action `fetch:template` avec une URL vers un template existant
+- Hériter ou étendre un template existant
+
+Le but est que chaque template soit entièrement autonome, avec son propre skeleton indépendant, pour qu'une modification d'un template n'impacte jamais un autre template de manière implicite.
+
 ## Steps standards
 
 Séquence standard : `fetch-skeleton` → `publish-repo` → `register-catalog`
