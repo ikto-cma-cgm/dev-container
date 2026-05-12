@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration debug="true">
+    <springProperty scope="context" name="springAppName"
+                    source="spring.application.name" scan="true" scanPeriod="30 seconds" debug="true"/>
+
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp>
+                    <timeZone>UTC</timeZone>
+                </timestamp>
+                <pattern>
+                    <pattern>
+                        {
+                        "level":"%level",
+                        "namespace": "${SPRING_PROFILES_ACTIVE}",
+                        "app": "${springAppName}",
+                        "traceId": "%mdc{traceId}",
+                        "spanId": "%mdc{spanId}",
+                        "userId": "%mdc{uid}",
+                        "url": "%mdc{URL}",
+                        "thread": "%thread",
+                        "logger": "%lo{10}:%M",
+                        "message": "%message"
+                        }
+                    </pattern>
+                </pattern>
+                <stackTrace>
+                    <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                        <shortenedClassNameLength>20</shortenedClassNameLength>
+                        <rootCauseFirst>false</rootCauseFirst>
+                    </throwableConverter>
+                </stackTrace>
+            </providers>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <logger name="io.jaegertracing.internal.reporters.RemoteReporter" level="ERROR"/>
+    <include file="logger/config/mount/logger-${SPRING_APPLICATION_NAME}.xml"/>
+
+</configuration>

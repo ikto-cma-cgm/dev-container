@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${{values.project_name}}
+  namespace: {{k8s.namespace}}
+  labels:
+    k8s-app: ${{values.project_name}}
+    FinOps.id: {{FinOps.ID}}
+spec:
+  replicas: {{k8s.hpa.min-replicas}}
+  selector:
+    matchLabels:
+      k8s-app: ${{values.project_name}}
+  #Deployment strategy 
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+
+  template:
+    metadata:
+      labels:
+        k8s-app: ${{values.project_name}}
+    spec:
+      serviceAccount: ${{values.project_name}}-app-sa
+      serviceAccountName: ${{values.project_name}}-app-sa  
+      automountServiceAccountToken: true
+      volumes:
+        - name: "volume-${{values.project_name}}-secrets"
+          secret:
+            secretName: ${{values.project_name}}
+      containers:
+      - name: ${{values.project_name}}
+        image: {{REGISTRY_URL}}/${env.APP_IMAGE}
+        imagePullPolicy: Always   
+        volumeMounts:
+           - name: "volume-${{values.project_name}}-secrets"
+             mountPath: "/etc/secrets/${{values.project_name}}"
+             readOnly: true       
+        ports:
+        - containerPort: 8080
+          name: web
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: {{k8s.namespace}}
+        - name: APP_NAME
+          value: ${{values.project_name}}
+        - name: camunda.client.mode
+          value: saas
+        resources:
+          limits:
+            cpu: {{k8s.be.limits.cpu}}
+            memory: {{k8s.be.limits.memory}}
+          requests:
+            cpu: {{k8s.be.requests.cpu}}
+            memory: {{k8s.be.requests.memory}}

@@ -1,0 +1,18 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{values.name}}
+  description: ${{values.description}}
+  tags:
+    - java
+    - sqs
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    jenkins.io/job-full-name: cma-cgm/${{values.name}}/main
+    sonarqube.org/project-key: cma-cgm:${{values.name}}
+spec:
+  type: service
+  lifecycle: experimental
+  owner: ${{values.owner}}
+  system: ${{values.system}}
+  domain: ${{values.domain}}

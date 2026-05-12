@@ -1,0 +1,63 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: messaging-sqs-template
+  title: Messaging SQS Template
+  description: >
+    AWS SQS event consumer module. Adds SQS message processing with event-driven
+    architecture for booking request, confirmation, and cancellation events.
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - integration
+    - sqs
+    - messaging
+spec:
+  type: service
+  owner: group:default/it-development-software-engineering-developer-platform
+  parameters:
+    - title: Service identity
+      required: [name, description, owner]
+      properties:
+        name:
+          title: Service name
+          type: string
+          pattern: '^[a-z][a-z0-9-]*[a-z0-9]$'
+          ui:help: 'Kebab-case, unique in the Catalog. Ex: booking-api'
+        description:
+          title: Description
+          type: string
+          ui:help: 'One-line description of the service.'
+        owner:
+          title: Owner
+          type: string
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              - kind: Group
+          ui:help: 'Team responsible for this service.'
+    - title: SQS Configuration
+      required: [queueUrl]
+      properties:
+        queueUrl:
+          title: SQS Queue URL
+          type: string
+          ui:help: 'AWS SQS queue URL for booking events.'
+  steps:
+    - id: fetch-sqs-skeleton
+      name: Fetch SQS skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          queue_url: ${{ parameters.queueUrl }}
+  output:
+    links:
+      - title: SQS Documentation
+        icon: docs
+        url: https://aws.amazon.com/sqs
+    text:
+      - title: SQS Messaging Installed
+        content: |
+          SQS event consumer files added.
+          Queue URL: ${{ parameters.queueUrl }}

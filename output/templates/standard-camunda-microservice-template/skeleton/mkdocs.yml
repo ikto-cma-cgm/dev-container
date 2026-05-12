@@ -1,0 +1,13 @@
+site_name: ${{values.artifact_id}}
+site_description: ${{values.description | dump}}
+docs_dir: docs
+nav:
+  - Introduction: index.md
+  - Template Contents: ./files/template-content.md
+  - Deployment: ./files/deployment.md
+  - Monitoring: ./files/monitoring.md
+  - Help: ./files/help-doc.md
+
+
+plugins:
+  - techdocs-core

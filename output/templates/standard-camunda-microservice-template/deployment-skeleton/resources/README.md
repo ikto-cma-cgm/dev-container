@@ -1,0 +1,39 @@
+Properties XLdeploy
+ # Deployment
+  - {{k8s.namespace}}
+  - {{k8s.pdb.maxUnavailable}}
+  - {{REGISTRY_URL}}
+  - ${env.APP_IMAGE}
+  - {{adapter.limits.cpu}}
+  - {{adapter.limits.memory}}
+  - {{adapter.requests.cpu}}
+  - {{adapter.requests.memory}}
+  - {{camunda.client.mode}}
+# ConfigMap
+  - {{k8s.namespace}}
+  - {{adapter.camunda.client_id}}
+  - {{adapter.camunda.client_secret}} 
+  - {{adapter.camunda.cluster_id}}
+  - {{adapter.camunda.region}}
+  - {{adapter.camunda.sqs}}
+  - {{adapter.iam.role.arn}}
+  - {{app.cma.core.security.oauth2.resource-server.ping.jwk-set-uri}}
+  - {{app.cma.core.security.oauth2.resource-server.ping.jwk-cache-refresh}}
+  - {{app.cma.core.security.oauth2.resource-server.ping.jwk-cache-ttl}}
+# Service Account
+  - {{k8s.namespace}}
+  - {{adapter.iam.role.arn}}
+# Role
+  - {{k8s.namespace}}
+# Role Binding
+  - {{k8s.namespace}}
+# Secret
+  - {{k8s.namespace}}
+  - {{adapter.camunda.client_id}}
+  - {{adapter.camunda.client_secret}} 
+# Ingress
+  - {{k8s.namespace}}
+  - {{k8s.ingress.host}}
+  - {{base-path}}
+# Service
+  - {{k8s.namespace}}

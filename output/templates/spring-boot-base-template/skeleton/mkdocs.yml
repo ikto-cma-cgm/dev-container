@@ -1,0 +1,8 @@
+site_name: ${{values.artifact_id}}
+site_description: ${{values.description | dump}}
+docs_dir: docs
+nav:
+  - Introduction: index.md
+
+plugins:
+  - techdocs-core

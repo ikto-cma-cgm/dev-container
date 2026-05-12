@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ${{values.project_name}}
+  namespace: {{k8s.namespace}}
+spec:
+  maxUnavailable: {{k8s.pdb.maxUnavailable}}
+  selector:
+    matchLabels:
+      k8s-app: ${{values.project_name}}

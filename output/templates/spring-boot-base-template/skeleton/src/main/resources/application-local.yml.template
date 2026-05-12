@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: ${{values.artifact_id}}
+management:
+  metrics:
+    enable:
+      all: false
+      case: true
+    registry:
+      cloudwatch:
+        batch-size: 20
+        step-in-seconds: 30
+        namespace: ${app.cma.project-name}
+    tags:
+      project: ${app.cma.project-name}
+      app: ${spring.application.name}
+  endpoints:
+    web:
+      exposure:
+        include: metrics
+app:
+  cma:
+    project-name: "My Project"
+    application-name: ${spring.application.name}
+    core:
+      security:
+       oauth2:
+         resource-server:
+           - ping:
+               jwk-cache-ttl: 24h
+               jwk-cache-refresh: 24h
+               jwk-set-uri: https://auth-pre.cma-cgm.com/ext/jwks
+               identifier:
+                 client_id:          
+      cloud:
+        aws:
+          region: eu-west-1
+          local:
+            enable: true

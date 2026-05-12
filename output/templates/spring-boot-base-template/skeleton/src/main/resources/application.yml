@@ -1,0 +1,4 @@
+#Used at runtime to load application secrets
+spring:
+  config:
+    import: optional:file:/etc/secrets/${{values.artifact_id}}/application-secrets.yaml

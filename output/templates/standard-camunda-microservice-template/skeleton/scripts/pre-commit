@@ -1,0 +1,41 @@
+#!/bin/bash
+
+#Validate Maven Build
+echo "Running Maven clean install..."
+mvn clean install
+
+#Check if the build failed
+if [ $? -ne 0 ]; then
+  echo "Maven build failed. Commit aborted."
+  exit 1
+fi
+
+#Validate Code Coverage(Note: to exclude files from code coverage calculation, kindly exclude the files in pom.xml)
+# Path to the JaCoCo coverage report
+REPORT_PATH="target/site/jacoco/jacoco.xml"
+
+# Minimum required code coverage percentage
+MIN_COVERAGE=70
+
+# Extract total covered instructions and sum them up
+COVERED=$(grep -oP 'type="INSTRUCTION".*?covered="\K\d+' $REPORT_PATH | awk -F'"' '{print $1}' | awk '{s+=$1} END {print s}')
+echo "COVERED : $COVERED"
+
+# Extract total missed instructions (similar to covered) and sum them up
+MISSED=$(grep -oP 'type="INSTRUCTION".*?missed="\K\d+' $REPORT_PATH | awk -F'"' '{print $1}' | awk '{s+=$1} END {print s}')
+echo "MISSED : $MISSED"
+
+# Calculate coverage percentage
+if [ "$COVERED" -eq 0 ] && [ "$MISSED" -eq 0 ]; then
+    COVERAGE_PERCENTAGE=100
+else
+    COVERAGE_PERCENTAGE=$((COVERED * 100 / (COVERED + MISSED)))
+fi
+echo "COVERAGE_PERCENTAGE : $COVERAGE_PERCENTAGE"
+
+# Check if coverage is below the threshold
+if [ $COVERAGE_PERCENTAGE -lt $MIN_COVERAGE ]; then
+    echo "Error: Code coverage is below $MIN_COVERAGE% ($COVERAGE_PERCENTAGE%). Commit aborted"
+    exit 1
+fi
+exit 0

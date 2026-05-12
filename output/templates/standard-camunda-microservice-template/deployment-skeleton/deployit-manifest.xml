@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<udm.DeploymentPackage version="${DEPLOYMENT_PACKAGE_VERSION}" application="${{values.application}}/${{values.project_name}}/${{values.project_name}}">
+	<deployables>
+
+		<k8s.ResourcesFile name="${{values.project_name}}_cnp" file="/resources/cnp.yaml">
+			<tags>
+				<value>DEV-CNP-${{values.project_name}}</value>
+				<value>QUA-CNP-${{values.project_name}}</value>
+				<value>INT-CNP-${{values.project_name}}</value>
+				<value>E2E-CNP-${{values.project_name}}</value>
+				<value>UAT-CNP-${{values.project_name}}</value>
+				<value>TRN-CNP-${{values.project_name}}</value>
+				<value>PRE-CNP-${{values.project_name}}</value>
+				<value>PRD-CNP-${{values.project_name}}</value>
+			</tags>
+			<scanPlaceholders>true</scanPlaceholders>
+			<createOrder>1</createOrder>
+			<modifyOrder>1</modifyOrder>
+		</k8s.ResourcesFile>
+	
+		<k8s.ResourcesFile name="${{values.project_name}}_configmap" file="/resources/configmap.yaml">
+			<tags>
+				<value>DEV-${{values.project_name}}</value>
+				<value>QUA-${{values.project_name}}</value>
+				<value>INT-${{values.project_name}}</value>
+				<value>E2E-${{values.project_name}}</value>
+				<value>UAT-${{values.project_name}}</value>
+				<value>TRN-${{values.project_name}}</value>
+				<value>PRE-${{values.project_name}}</value>
+				<value>PRD-${{values.project_name}}</value>
+			</tags>
+			<scanPlaceholders>true</scanPlaceholders>
+			<updateMethod>apply</updateMethod>
+			<createOrder>1</createOrder>
+			<modifyOrder>1</modifyOrder>
+		</k8s.ResourcesFile>
+
+		<k8s.ResourcesFile name="${{values.project_name}}_secrets" file="/resources/secrets.yaml">
+			<tags>
+				<value>DEV-${{values.project_name}}</value>
+				<value>QUA-${{values.project_name}}</value>
+				<value>INT-${{values.project_name}}</value>
+				<value>E2E-${{values.project_name}}</value>
+				<value>UAT-${{values.project_name}}</value>
+				<value>TRN-${{values.project_name}}</value>
+				<value>PRE-${{values.project_name}}</value>
+				<value>PRD-${{values.project_name}}</value>
+			</tags>
+			<scanPlaceholders>true</scanPlaceholders>
+			<updateMethod>apply</updateMethod>
+			<createOrder>2</createOrder>
+			<modifyOrder>2</modifyOrder>
+		</k8s.ResourcesFile>
+
+		<k8s.ResourcesFile name="${{values.project_name}}_service_account" file="/resources/service_account.yaml">
+			<tags>
+				<value>DEV-${{values.project_name}}</value>
+				<value>QUA-${{values.project_name}}</value>
+				<value>INT-${{values.project_name}}</value>
+				<value>E2E-${{values.project_name}}</value>
+				<value>UAT-${{values.project_name}}</value>
+				<value>TRN-${{values.project_name}}</value>
+				<value>PRE-${{values.project_name}}</value>
+				<value>PRD-${{values.project_name}}</value>
+			</tags>
+			<scanPlaceholders>true</scanPlaceholders>
+			<updateMethod>apply</updateMethod>
+			<createOrder>3</createOrder>
+			<modifyOrder>3</modifyOrder>
+		</k8s.ResourcesFile>
+
+		<k8s.ResourcesFile name="${{values.project_name}}_role" file="/resources/role.yaml">
+			<tags>
+				<value>DEV-${{values.project_name}}</value>
+				<value>QUA-${{values.project_name}}</value>
+				<value>INT-${{values.project_name}}</value>
+				<value>E2E-${{values.project_name}}</value>
+				<value>UAT-${{values.project_name}}</value>
+				<value>TRN-${{values.project_name}}</value>
+				<value>PRE-${{values.project_name}}</value>
+				<value>PRD-${{values.project_name}}</value>
+			</tags>
+			<scanPlaceholders>true</scanPlaceholders>
+			<updateMethod>apply</updateMethod>
+			<createOrder>4</createOrder>
+			<modifyOrder>4</modifyOrder>
+		</k8s.ResourcesFile>
+
+         <k8s.ResourcesFile name="${{values.project_name}}_rolebinding" file="/resources/rolebinding.yaml">
+			<tags>
+				<value>DEV-${{values.project_name}}</value>
+				<value>QUA-${{values.project_name}}</value>
+				<value>INT-${{values.project_name}}</value>
+				<value>E2E-${{values.project_name}}</value>
+				<value>UAT-${{values.project_name}}</value>
+				<value>TRN-${{values.project_name}}</value>
+				<value>PRE-${{values.project_name}}</value>
+				<value>PRD-${{values.project_name}}</value>
+			</tags>
+			<scanPlaceholders>true</scanPlaceholders>
+			<updateMethod>apply</updateMethod>
+			<createOrder>5</createOrder>
+			<modifyOrder>5</modifyOrder>
+		</k8s.ResourcesFile>
+
+		<k8s.ResourcesFile name="${{values.project_name}}_service" file="/resources/service.yaml">
+			<tags>
+				<value>DEV-${{values.project_name}}</value>
+				<value>QUA-${{values.project_name}}</value>
+				<value>INT-${{values.project_name}}</value>
+				<value>E2E-${{values.project_name}}</value>
+				<value>UAT-${{values.project_name}}</value>
+				<value>TRN-${{values.project_name}}</value>
+				<value>PRE-${{values.project_name}}</value>
+				<value>PRD-${{values.project_name}}</value>
+			</tags>
+			<scanPlaceholders>true</scanPlaceholders>
+			<updateMethod>apply</updateMethod>
+			<createOrder>6</createOrder>
+			<modifyOrder>6</modifyOrder>
+		</k8s.ResourcesFile>
+
+		<k8s.ResourcesFile name="${{values.project_name}}_hpa" file="/resources/hpa.yaml">
+			<tags>
+				<value>DEV-${{values.project_name}}</value>
+				<value>QUA-${{values.project_name}}</value>
+				<value>INT-${{values.project_name}}</value>
+				<value>E2E-${{values.project_name}}</value>
+				<value>UAT-${{values.project_name}}</value>
+				<value>TRN-${{values.project_name}}</value>
+				<value>PRE-${{values.project_name}}</value>
+				<value>PRD-${{values.project_name}}</value>
+			</tags>
+			<scanPlaceholders>true</scanPlaceholders>
+			<updateMethod>apply</updateMethod>
+			<createOrder>7</createOrder>
+			<modifyOrder>7</modifyOrder>
+		</k8s.ResourcesFile>
+
+		<k8s.ResourcesFile name="${{values.project_name}}_pdb" file="/resources/pdb.yaml">
+			<tags>
+				<value>UAT-${{values.project_name}}</value>
+				<value>PRE-${{values.project_name}}</value>
+				<value>PRD-${{values.project_name}}</value>
+			</tags>
+			<scanPlaceholders>true</scanPlaceholders>
+			<updateMethod>apply</updateMethod>
+			<createOrder>8</createOrder>
+			<modifyOrder>8</modifyOrder>
+		</k8s.ResourcesFile>
+
+		<k8s.ResourcesFile name="${{values.project_name}}_deployment" file="/resources/deployment.yaml">
+			<tags>
+				<value>DEV-${{values.project_name}}</value>
+				<value>QUA-${{values.project_name}}</value>
+				<value>INT-${{values.project_name}}</value>
+				<value>E2E-${{values.project_name}}</value>
+				<value>UAT-${{values.project_name}}</value>
+				<value>TRN-${{values.project_name}}</value>
+				<value>PRE-${{values.project_name}}</value>
+				<value>PRD-${{values.project_name}}</value>
+			</tags>
+			<scanPlaceholders>true</scanPlaceholders>
+			<readinessProbeRetry>120</readinessProbeRetry>
+			<updateMethod>patch</updateMethod>
+			<createOrder>9</createOrder>
+			<modifyOrder>9</modifyOrder>
+		</k8s.ResourcesFile>
+
+		<k8s.ResourcesFile name="${{values.project_name}}_ingress" file="/resources/ingress.yaml">
+			<tags>
+				<value>DEV-${{values.project_name}}</value>
+				<value>QUA-${{values.project_name}}</value>
+				<value>INT-${{values.project_name}}</value>
+				<value>E2E-${{values.project_name}}</value>
+				<value>UAT-${{values.project_name}}</value>
+				<value>TRN-${{values.project_name}}</value>
+				<value>PRE-${{values.project_name}}</value>
+				<value>PRD-${{values.project_name}}</value>
+			</tags>
+			<scanPlaceholders>true</scanPlaceholders>
+			<updateMethod>apply</updateMethod>
+			<createOrder>10</createOrder>
+			<modifyOrder>10</modifyOrder>
+		</k8s.ResourcesFile>
+
+	</deployables>
+</udm.DeploymentPackage>

@@ -1,0 +1,39 @@
+pipelineType: java
+javaTool: ${{ 'JAVA_21' if (values.java_version === "21") else 'JAVA_17' }}
+mavenArgs: "-U -P=-local"
+runJavadoc: true
+runSonar: true
+runTests: true
+qualityGate: false
+provisioner: docker
+
+sonarProjectMainBranch: "master"
+sonarProjectQualityGate: "CMACGM-Global-Advanced"
+
+provisionerImageConf:
+  - imageName: "@${{values.docker_image_prefix}}/${{values.artifact_id}}"
+
+provisionerContextLoad:
+  - source: "target/*.jar"
+    target: "docker/jar/"
+    copyOperation: fileCopyOperation
+    flattenFiles: true
+
+chainJob:
+  jobName: ${{values.chainJobUrl}}
+  parameters:
+  - name: image
+    type: ImageChoiceParameterValue
+    environment: ${{values.docker_image_prefix}}
+    image: ${env.PIPELINE_PROJECT_NAME}
+    version: ${env.PROJECT_VERSION}
+  
+replaceWorkspacePlaceholders: 
+  parameters:
+    glob: '**/application.yml,**/bootstrap.yml'
+
+provisionFor:
+  - master
+  - develop
+  - feature
+  - hypercare
