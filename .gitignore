@@ -7,5 +7,6 @@ node_modules/
 # Historique aider (ancien assistant)
 .aider.*
 
-# Sessions opencode
-.opencode/sessions/
+# Opencode
+.opencode/
+data/
