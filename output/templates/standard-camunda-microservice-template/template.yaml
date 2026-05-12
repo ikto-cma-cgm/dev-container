@@ -1,0 +1,210 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: standard-camunda-microservice-template
+  title: Standard Camunda Spring Boot Microservice Template
+  description: >
+    Composite template for Spring Boot Camunda adapter microservices with K8s deployment.
+    Includes Camunda BPMN integration, optional messaging (SQS), security, metrics, and full deployment artifacts.
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    simpleicons.org/icon-slug: camunda
+  tags:
+    - application
+    - camunda
+    - maven
+    - spring-boot
+spec:
+  type: service
+  owner: group:default/it-development-software-engineering-developer-platform
+  parameters:
+    - $yaml: https://integration.shared-services-prd.aws.cld.cma-cgm.com/gitlab/it-development/software-engineering/developer-platform/developer-portal/templates/backstage-shared-config-templates/-/blob/master/spring-boot/parameters/standard_project_information.yaml
+    - $yaml: https://integration.shared-services-prd.aws.cld.cma-cgm.com/gitlab/it-development/software-engineering/developer-platform/developer-portal/templates/backstage-shared-config-templates/-/blob/master/common/parameters/gitlab_information.yaml
+    - title: Project Dependencies
+      properties:
+        dependencies:
+          type: object
+          title: Core Component
+          ui:help: 'Optional CMA CGM module dependencies for your microservice.'
+          required:
+            - messaging
+          properties:
+            cloud_file_storage_client:
+              type: boolean
+              default: false
+              ui:title: "Cloud File Storage Client"
+              ui:help: "Adds cloud-file-storage-client library for S3-compatible storage operations."
+            notification_client:
+              type: boolean
+              default: false
+              ui:title: "Notification Client"
+              ui:help: "Adds notification-client for SMTP/SNS-based notifications."
+            technical_message_publisher:
+              type: boolean
+              default: false
+              ui:title: "Technical Message Publisher"
+              ui:help: "Adds technical-message-publisher for reliable message queue publishing."
+            business_event_publisher:
+              type: boolean
+              default: false
+              ui:title: "Business Event Publisher"
+              ui:help: "Adds business-event-publisher for event broker integration."
+            open_feign:
+              type: boolean
+              default: false
+              ui:title: "Feign Client and Circuit Breaker"
+              ui:help: "Enables declarative HTTP client (spring-cloud-openfeign) with Resilience4j circuit breaker."
+            messaging:
+              type: object
+              title: Messaging Consumer
+              ui:help: 'Messaging system for async triggering of business processes.'
+              required:
+                - Messaging_Consumer_Type
+              properties:
+                Messaging_Consumer_Type:
+                  title: Choose Asynchronous Triggering
+                  type: string
+                  enum:
+                    - "NONE"
+                    - "SQS"
+                  enumNames:
+                    - "None (no asynchronous integration - only http endpoint)"
+                    - "AWS SQS"
+                  ui:options:
+                    openEnum: true
+                  ui:help: "Messaging system for async triggering of business processes."
+    - $yaml: https://integration.shared-services-prd.aws.cld.cma-cgm.com/gitlab/it-development/software-engineering/developer-platform/developer-portal/templates/backstage-shared-config-templates/-/blob/master/common/parameters/backstage_configuration.yaml
+  steps:
+    - id: fetch-configurations
+      action: cma:fetch:config
+      name: Load CMA CICD Configurations
+    - id: create-microservice-repo
+      action: cma:cicd:create
+      name: Microservice Initialization
+      input:
+        architectureArea: ${{ parameters.gitlab_information.architecture_area }}
+        projectName: ${{ parameters.gitlab_information.gitlab_namespace }}
+        repoName: ${{ parameters.artifact_id }}
+        repoDescription: ${{ parameters.description }}
+        creatorCcgid: ${{ parameters.creator_ccgid }}
+    - id: fetch-skeleton
+      name: Fetch Microservice Skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./app
+        values:
+          group_id: ${{ parameters.group_id }}
+          artifact_id: ${{ parameters.artifact_id }}
+          description: ${{ parameters.description }}
+          java_version: ${{ parameters.java_version }}
+          java_package_name: ${{ parameters.java_package_name }}
+          spring_boot_version: ${{ parameters.spring_boot_version }}
+          open_feign: ${{ parameters.dependencies.open_feign }}
+          cloud_file_storage_client: ${{ parameters.dependencies.cloud_file_storage_client }}
+          notification_client: ${{ parameters.dependencies.notification_client }}
+          technical_message_publisher: ${{ parameters.dependencies.technical_message_publisher }}
+          business_event_publisher: ${{ parameters.dependencies.business_event_publisher }}
+          sqs_flavor: ${{ true if parameters.dependencies.messaging.Messaging_Consumer_Type === "SQS" else false }}
+          solace_flavor: ${{ true if parameters.dependencies.messaging.Messaging_Consumer_Type === "SOLACE" else false }}
+          docker_image_prefix: ${{ parameters.gitlab_information.docker_image_prefix }}
+          owner: ${{ parameters.owner }}
+          system: ${{ parameters.system }}
+          domain: ${{ parameters.domain }}
+          creator_ccgid: ${{ parameters.creator_ccgid }}
+          gitUrl: https://${{ steps['fetch-configurations'].output.gitlabHost }}/gitlab/${{ parameters.gitlab_information.architecture_area }}/${{ parameters.gitlab_information.gitlab_namespace }}/${{ parameters.artifact_id }}.git
+          chainJobUrl: ${{ parameters.gitlab_information.architecture_area }}/${{ parameters.gitlab_information.gitlab_namespace }}/${{ parameters.artifact_id }}_deployment/master
+          jenkins_job_url: ${{ parameters.gitlab_information.architecture_area }}/${{ parameters.gitlab_information.gitlab_namespace }}/${{ parameters.artifact_id }}
+    - id: remove-messaging
+      action: fs:delete
+      name: Remove unused messaging flavor
+      if: ${{ parameters.dependencies.messaging.Messaging_Consumer_Type === "NONE" }}
+      input:
+        files:
+          - app/src/main/java/${{ parameters.java_package_name | replace("/", "/") }}/messaging-placeholder
+          - app/src/main/resources/application-messaging-flavor-local.yml.template
+    - id: rename-sqs-flavor
+      action: fs:rename
+      name: Rename SQS messaging flavor
+      if: ${{ parameters.dependencies.messaging.Messaging_Consumer_Type === "SQS" }}
+      input:
+        files:
+          - from: app/src/main/java/${{ parameters.java_package_name | replace("/", "/") }}/messaging-placeholder
+            to: app/src/main/java/${{ parameters.java_package_name | replace("/", "/") }}/messaging
+          - from: app/src/main/resources/application-messaging-flavor-local.yml.template
+            to: app/src/main/resources/application-messaging-flavor-local.yml
+    - id: publish-microservice-project
+      action: gitlab:repo:push
+      name: Push Microservice Code
+      input:
+        sourcePath: ./app
+        repoUrl: ${{ steps['fetch-configurations'].output.gitlabHost }}?owner=${{ parameters.gitlab_information.architecture_area }}/${{ parameters.gitlab_information.gitlab_namespace }}&repo=${{ parameters.artifact_id }}
+        branchName: master
+        commitMessage: Initial Commit by ${{ user.ref.split('/')[1] }}
+    - id: register-microservice-component
+      action: catalog:register
+      name: Register in Backstage
+      input:
+        repoContentsUrl: ${{ steps['create-microservice-repo'].output.gitlabRepoUrl | replace(".git", "/-/blob/master") }}
+        catalogInfoPath: "/catalog-info.yaml"
+    - id: fetch-deployment-skeleton
+      action: fetch:template
+      name: Fetch Deployment Skeleton
+      input:
+        url: ./deployment-skeleton
+        targetPath: ./deployment
+        values:
+          project_name: ${{ parameters.artifact_id }}
+          application: ${{ parameters.gitlab_information.architecture_area }}/${{ parameters.gitlab_information.gitlab_namespace }}
+          cloud_file_storage_client: ${{ parameters.dependencies.cloud_file_storage_client }}
+          notification_client: ${{ parameters.dependencies.notification_client }}
+          technical_message_publisher: ${{ parameters.dependencies.technical_message_publisher }}
+          business_event_publisher: ${{ parameters.dependencies.business_event_publisher }}
+          technical_message_consumer: ${{ true if parameters.dependencies.messaging.Messaging_Consumer_Type === "SQS" else false }}
+          business_event_consumer: ${{ true if parameters.dependencies.messaging.Messaging_Consumer_Type === "SOLACE" else false }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          system: ${{ parameters.system }}
+          domain: ${{ parameters.domain }}
+    - id: create-deployment-repo
+      action: cma:cicd:create
+      name: Deployment Project Initialization
+      input:
+        architectureArea: ${{ parameters.gitlab_information.architecture_area }}
+        projectName: ${{ parameters.gitlab_information.gitlab_namespace }}
+        repoName: ${{ parameters.artifact_id }}_deployment
+        repoDescription: ${{ parameters.description }}
+        creatorCcgid: ${{ parameters.creator_ccgid }}
+    - id: publish-deployment-project
+      action: gitlab:repo:push
+      name: Push Deployment Project
+      input:
+        sourcePath: ./deployment
+        repoUrl: ${{ steps['fetch-configurations'].output.gitlabHost }}?owner=${{ parameters.gitlab_information.architecture_area }}/${{ parameters.gitlab_information.gitlab_namespace }}&repo=${{ parameters.artifact_id }}_deployment
+        branchName: master
+        commitMessage: Initial Commit by ${{ user.ref.split('/')[1] }}
+    - id: register-deployment-resource
+      action: catalog:register
+      name: Register Deployment Resource in Backstage
+      input:
+        repoContentsUrl: ${{ steps['create-deployment-repo'].output.gitlabRepoUrl | replace(".git", "/-/blob/master") }}
+        catalogInfoPath: "/catalog-info.yaml"
+  output:
+    links:
+      - title: Open Repository
+        icon: web
+        url: ${{ steps['create-microservice-repo'].output.gitlabRepoUrl }}
+      - title: Open Jenkins Job
+        icon: web
+        url: ${{ steps['create-microservice-repo'].output.jenkinsJobUrl }}
+      - title: Open Catalog
+        icon: catalog
+        entityRef: ${{ steps['register-microservice-component'].output.entityRef }}
+    text:
+      - title: Next Steps
+        content: |
+          Service **${{ parameters.artifact_id }}** created successfully.
+          1. Clone: `git clone ${{ steps['create-microservice-repo'].output.gitlabRepoUrl }}`
+          2. Build: `mvn clean install`
+          3. Configure secrets in GitLab Settings
+          4. Pipeline CI starts automatically on first push
