@@ -1,6 +1,6 @@
 pipelineType: java
 
-javaTool: ${{ 'JAVA_21' if (values.javaVersion === '21') else 'JAVA_17' }}
+javaTool: ${{ values.javaTool }}
 mavenArgs: "-U -P=-local"
 
 runJavadoc: true

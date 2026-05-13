@@ -1,11 +1,9 @@
-pipelineType: java
+pipelineType: nodejs
 
-javaTool: ${{ values.javaTool }}
-mavenArgs: "-U -P=-local"
+nodejsVersion: ${{ values.nodejsVersion }}
 
-runJavadoc: true
-runSonar: true
 runTests: true
+runSonar: true
 qualityGate: false
 provisioner: docker
 

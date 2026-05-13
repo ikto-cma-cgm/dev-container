@@ -1,0 +1,31 @@
+- title: Backstage Configuration
+  required:
+    - owner
+    - system
+  properties:
+    owner:
+      title: Owner
+      type: string
+      ui:field: EntityPicker
+      ui:options:
+        catalogFilter:
+          - kind: Group
+      ui:help: "Équipe responsable. Sera paginée en cas d'incident."
+
+    system:
+      title: System
+      type: string
+      ui:help: "System Backstage auquel ce service appartient. Ex: pricing"
+
+    domain:
+      title: Domain
+      type: string
+      ui:help: "Domain métier. Ex: finance, shipping, platform"
+
+    creator_ccgid:
+      title: Creator CCGRID
+      type: string
+      description: "CMA CGM ID of the user creating this project"
+      ui:help: "Identifiant employé CMA CGM du créateur"
+      default: "${{ user.entity.metadata.name }}"
+      ui:autocomplete: "off"

@@ -3,7 +3,7 @@ kind: Template
 metadata:
   name: springboot-service-template
   title: Spring Boot Microservice
-  description: Scaffolds a minimal Spring Boot 3 microservice with Maven, Docker, PostgreSQL and Backstage integration.
+  description: Scaffolds a Spring Boot 3 microservice with Maven, Docker, PostgreSQL and Backstage integration.
   annotations:
     simpleicons.org/icon-slug: springboot
     backstage.io/techdocs-ref: dir:.
@@ -55,6 +55,11 @@ spec:
           enum: ['17', '21']
           default: '21'
           ui:help: 'Version Java du serveur de runtime.'
+        javaTool:
+          title: Java Tool
+          type: string
+          default: 'JAVA_21'
+          ui:help: "Code outil Java pour le pipeline. JAVA_21 pour Java 21, JAVA_17 pour Java 17."
         groupId:
           title: Maven Group ID
           type: string
@@ -70,6 +75,28 @@ spec:
           type: string
           default: '3.4.2'
           ui:help: 'Version de Spring Boot. Consultez les versions supportées sur spring.io'
+        springCloudVersion:
+          title: Spring Cloud version
+          type: string
+          default: '2024.0.0'
+          ui:help: 'Version de Spring Cloud.'
+
+    - title: GitLab Information
+      required: [architectureArea, gitlabNamespace]
+      properties:
+        architectureArea:
+          title: Architecture Area
+          type: string
+          ui:help: 'Domaine d''architecture en GitLab. Ex: finance, shipping, platform'
+        gitlabNamespace:
+          title: GitLab Namespace
+          type: string
+          ui:help: 'Espace de noms GitLab pour le projet. Ex: pricing-services'
+        dockerImagePrefix:
+          title: Docker Image Prefix
+          type: string
+          default: 'eu.gcr.io/cma-cgm'
+          ui:help: 'Préfixe du registry Docker.'
 
   steps:
     - id: fetch-skeleton
@@ -84,9 +111,11 @@ spec:
           system: ${{ parameters.system }}
           domain: ${{ parameters.domain }}
           javaVersion: ${{ parameters.javaVersion }}
+          javaTool: ${{ parameters.javaTool }}
           groupId: ${{ parameters.groupId }}
           packageName: ${{ parameters.packageName }}
           springBootVersion: ${{ parameters.springBootVersion }}
+          springCloudVersion: ${{ parameters.springCloudVersion }}
 
     - id: publish-repo
       name: Publish repository

@@ -1,0 +1,7 @@
+- id: create_liquibase_repo
+  name: Create Liquibase Repository
+  action: publish:github
+  input:
+    allowedHosts: ['github.com']
+    repoUrl: github.com?owner=cma-cgm&repo=${{ parameters.artifact_id }}-liquibase
+    description: ${{ parameters.description }} - Database migrations

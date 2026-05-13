@@ -55,6 +55,11 @@ spec:
           enum: ['17', '21']
           default: '21'
           ui:help: 'Version Java du serveur de runtime.'
+        javaTool:
+          title: Java Tool
+          type: string
+          default: 'JAVA_21'
+          ui:help: "Code outil Java pour le pipeline. JAVA_21 pour Java 21, JAVA_17 pour Java 17."
         groupId:
           title: Maven Group ID
           type: string
@@ -70,6 +75,11 @@ spec:
           type: string
           default: '3.4.2'
           ui:help: 'Version de Spring Boot. Consultez les versions supportées sur spring.io'
+        springCloudVersion:
+          title: Spring Cloud version
+          type: string
+          default: '2024.0.0'
+          ui:help: 'Version de Spring Cloud.'
         dbms:
           title: Database type
           type: string
@@ -81,6 +91,23 @@ spec:
           type: string
           default: 'DB-SCRIPTS'
           ui:help: 'Nom du changelog dans deployit-manifest.xml.'
+
+    - title: GitLab Information
+      required: [architectureArea, gitlabNamespace]
+      properties:
+        architectureArea:
+          title: Architecture Area
+          type: string
+          ui:help: 'Domaine d''architecture en GitLab. Ex: finance, shipping, platform'
+        gitlabNamespace:
+          title: GitLab Namespace
+          type: string
+          ui:help: 'Espace de noms GitLab pour le projet. Ex: pricing-services'
+        dockerImagePrefix:
+          title: Docker Image Prefix
+          type: string
+          default: 'eu.gcr.io/cma-cgm'
+          ui:help: 'Préfixe du registry Docker.'
 
   steps:
     - id: fetch-springboot-skeleton
@@ -95,10 +122,13 @@ spec:
           system: ${{ parameters.system }}
           domain: ${{ parameters.domain }}
           javaVersion: ${{ parameters.javaVersion }}
+          javaTool: ${{ parameters.javaTool }}
           groupId: ${{ parameters.groupId }}
           packageName: ${{ parameters.packageName }}
           springBootVersion: ${{ parameters.springBootVersion }}
+          springCloudVersion: ${{ parameters.springCloudVersion }}
           dbms: ${{ parameters.dbms }}
+          changelogName: ${{ parameters.changelogName }}
 
     - id: publish-repo
       name: Publish repository

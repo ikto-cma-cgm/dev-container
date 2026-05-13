@@ -1,30 +1,30 @@
 apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  name: liquibase-service-template
-  title: Liquibase Database Migrations
-  description: Scaffolds a Liquibase migration project with db-changelog, deployit-manifest and Backstage Component registration.
+  name: springboot-library-template
+  title: Spring Boot Library
+  description: Scaffolds a reusable Spring Boot Maven library with Backstage integration and Nexus publishing.
   annotations:
-    simpleicons.org/icon-slug: liquibase
+    simpleicons.org/icon-slug: springboot
     backstage.io/techdocs-ref: dir:.
   tags:
     - application
 spec:
-  type: service
+  type: library
   owner: group:default/it-development-software-engineering-developer-platform
   parameters:
     - title: Service identity
       required: [name, description, owner]
       properties:
         name:
-          title: Service name
+          title: Library name
           type: string
           pattern: '^[a-z][a-z0-9-]*[a-z0-9]$'
-          ui:help: 'Nom du projet Liquibase en kebab-case. Ex: quote-pricing-db'
+          ui:help: 'Kebab-case, unique dans le Catalog. Ex: common-utils'
         description:
           title: Description
           type: string
-          ui:help: 'Description du projet de migrations. Apparaît dans le Catalog.'
+          ui:help: 'Une phrase décrivant la librairie. Apparaîtra dans le Catalog.'
         owner:
           title: Owner
           type: string
@@ -32,7 +32,7 @@ spec:
           ui:options:
             catalogFilter:
               - kind: Group
-          ui:help: 'Équipe responsable des migrations de base de données.'
+          ui:help: 'Équipe responsable de la librairie.'
 
     - title: Catalog placement
       required: [system, domain]
@@ -40,31 +40,41 @@ spec:
         system:
           title: System
           type: string
-          ui:help: 'System Backstage associé. Ex: pricing'
+          ui:help: 'System Backstage auquel cette librairie appartient. Ex: core'
         domain:
           title: Domain
           type: string
           ui:help: 'Domain métier. Ex: finance, shipping, platform'
 
-    - title: Liquibase configuration
-      required: [changelogName, application]
+    - title: Build configuration
+      required: [javaVersion, groupId]
       properties:
-        changelogName:
-          title: Changelog name
+        javaVersion:
+          title: Java version
           type: string
-          default: 'DB-SCRIPTS'
-          ui:help: 'Nom du changelog dans deployit-manifest.xml. Sera préfixé par le nom du service.'
-        application:
-          title: Application path
+          enum: ['17', '21']
+          default: '21'
+          ui:help: 'Version Java pour la compilation.'
+        javaTool:
+          title: Java Tool
           type: string
-          default: 'default/my-service'
-          ui:help: 'Chemin dapplication dans XLD. Format: architecture_area/namespace'
-        dbms:
-          title: Database type
+          default: 'JAVA_21'
+          ui:help: "Code outil Java pour le pipeline. JAVA_21 pour Java 21, JAVA_17 pour Java 17."
+        groupId:
+          title: Maven Group ID
           type: string
-          enum: ['postgresql', 'oracle']
-          default: 'postgresql'
-          ui:help: 'SGBD cible des scripts de migration.'
+          default: 'com.cma'
+          ui:help: 'Identifiant Maven du groupe. Ex: com.cma'
+        packageName:
+          title: Java package name
+          type: string
+          default: 'com.example.lib'
+          ui:help: 'Package racine pour les classes Java. Ex: com.cma.common'
+        springBootVersion:
+          title: Spring Boot version
+          type: string
+          default: '3.4.2'
+          ui:help: 'Version de Spring Boot utilisée pour les dépendances.'
 
     - title: GitLab Information
       required: [architectureArea, gitlabNamespace]
@@ -90,9 +100,11 @@ spec:
           owner: ${{ parameters.owner }}
           system: ${{ parameters.system }}
           domain: ${{ parameters.domain }}
-          changelogName: ${{ parameters.changelogName }}
-          application: ${{ parameters.application }}
-          dbms: ${{ parameters.dbms }}
+          javaVersion: ${{ parameters.javaVersion }}
+          javaTool: ${{ parameters.javaTool }}
+          groupId: ${{ parameters.groupId }}
+          packageName: ${{ parameters.packageName }}
+          springBootVersion: ${{ parameters.springBootVersion }}
 
     - id: publish-repo
       name: Publish repository
@@ -119,8 +131,8 @@ spec:
     text:
       - title: Next Steps
         content: |
-          Projet Liquibase **${{ parameters.name }}** créé avec succès.
+          Librairie **${{ parameters.name }}** créée avec succès.
           1. Clone : `git clone ${{ steps['publish-repo'].output.remoteUrl }}`
-          2. Ajoutez vos scripts SQL dans `src/001_scripts/`
-          3. Mettez à jour `db-changelog.xml` pour inclure vos nouveaux changelogs
-          4. Le pipeline XL Deploy packagera les migrations automatiquement
+          2. Installez : `mvn clean install`
+          3. Publiez sur Nexus : `mvn clean deploy -Prelease`
+          4. Le pipeline CI démarre automatiquement au premier push

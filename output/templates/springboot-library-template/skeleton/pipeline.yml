@@ -1,13 +1,11 @@
 pipelineType: java
 
 javaTool: ${{ values.javaTool }}
-mavenArgs: "-U -P=-local"
 
-runJavadoc: true
-runSonar: true
 runTests: true
+runSonar: true
 qualityGate: false
-provisioner: docker
+provisioner: none
 
 sonarProjectMainBranch: "master"
 sonarProjectQualityGate: "CMACGM-Global-Advanced"
@@ -16,4 +14,3 @@ provisionFor:
   - master
   - develop
   - feature
-  - hypercare

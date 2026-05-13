@@ -1,0 +1,24 @@
+- title: Spring Boot - Scaffolding Options
+  required: []
+  properties:
+    project_scaffolding_options:
+      title: Project Scaffolding Options
+      type: object
+      description: Choose which additional projects to scaffold alongside your microservice
+      properties:
+        createNewLiquibaseProject:
+          type: boolean
+          default: false
+          title: "Create Liquibase Project"
+          description: "Generate a separate Liquibase migration project"
+        createNewDeploymentProject:
+          type: boolean
+          default: false
+          title: "Create Deployment Project"
+          description: "Generate a separate Kubernetes deployment project"
+        createNewProject:
+          type: boolean
+          default: true
+          title: "Create Microservice"
+          description: "Generate the main Spring Boot microservice project (always enabled)"
+          ui:help: "Laissez à true pour créer le projet microservice principal"

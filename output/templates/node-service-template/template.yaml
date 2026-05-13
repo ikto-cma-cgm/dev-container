@@ -1,11 +1,11 @@
 apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  name: liquibase-service-template
-  title: Liquibase Database Migrations
-  description: Scaffolds a Liquibase migration project with db-changelog, deployit-manifest and Backstage Component registration.
+  name: node-service-template
+  title: Node.js Service
+  description: Scaffolds a Node.js microservice with package management, Docker, and Backstage integration.
   annotations:
-    simpleicons.org/icon-slug: liquibase
+    simpleicons.org/icon-slug: nodedotjs
     backstage.io/techdocs-ref: dir:.
   tags:
     - application
@@ -20,11 +20,11 @@ spec:
           title: Service name
           type: string
           pattern: '^[a-z][a-z0-9-]*[a-z0-9]$'
-          ui:help: 'Nom du projet Liquibase en kebab-case. Ex: quote-pricing-db'
+          ui:help: 'Kebab-case, unique dans le Catalog. Ex: quote-pricing-api'
         description:
           title: Description
           type: string
-          ui:help: 'Description du projet de migrations. Apparaît dans le Catalog.'
+          ui:help: 'Une phrase décrivant le service. Apparaîtra dans le Catalog.'
         owner:
           title: Owner
           type: string
@@ -32,7 +32,7 @@ spec:
           ui:options:
             catalogFilter:
               - kind: Group
-          ui:help: 'Équipe responsable des migrations de base de données.'
+          ui:help: 'Équipe responsable. Sera paginée en cas d''incident.'
 
     - title: Catalog placement
       required: [system, domain]
@@ -40,31 +40,29 @@ spec:
         system:
           title: System
           type: string
-          ui:help: 'System Backstage associé. Ex: pricing'
+          ui:help: 'System Backstage auquel ce service appartient. Ex: pricing'
         domain:
           title: Domain
           type: string
           ui:help: 'Domain métier. Ex: finance, shipping, platform'
 
-    - title: Liquibase configuration
-      required: [changelogName, application]
+    - title: Node configuration
+      required: [nodeVersion]
       properties:
-        changelogName:
-          title: Changelog name
+        nodeVersion:
+          title: Node version
           type: string
-          default: 'DB-SCRIPTS'
-          ui:help: 'Nom du changelog dans deployit-manifest.xml. Sera préfixé par le nom du service.'
-        application:
-          title: Application path
+          enum: ['20', '22']
+          default: '22'
+          enumNames:
+            - "Node 20 LTS"
+            - "Node 22 LTS"
+          ui:help: 'Version Node.js pour le runtime'
+        nodejsVersion:
+          title: Node.js Pipeline Version
           type: string
-          default: 'default/my-service'
-          ui:help: 'Chemin dapplication dans XLD. Format: architecture_area/namespace'
-        dbms:
-          title: Database type
-          type: string
-          enum: ['postgresql', 'oracle']
-          default: 'postgresql'
-          ui:help: 'SGBD cible des scripts de migration.'
+          default: 'NODE_22'
+          ui:help: "Code outil Node.js pour le pipeline. NODE_22 pour Node 22, NODE_20 pour Node 20."
 
     - title: GitLab Information
       required: [architectureArea, gitlabNamespace]
@@ -90,9 +88,8 @@ spec:
           owner: ${{ parameters.owner }}
           system: ${{ parameters.system }}
           domain: ${{ parameters.domain }}
-          changelogName: ${{ parameters.changelogName }}
-          application: ${{ parameters.application }}
-          dbms: ${{ parameters.dbms }}
+          nodeVersion: ${{ parameters.nodeVersion }}
+          nodejsVersion: ${{ parameters.nodejsVersion }}
 
     - id: publish-repo
       name: Publish repository
@@ -119,8 +116,8 @@ spec:
     text:
       - title: Next Steps
         content: |
-          Projet Liquibase **${{ parameters.name }}** créé avec succès.
+          Service **${{ parameters.name }}** créé avec succès.
           1. Clone : `git clone ${{ steps['publish-repo'].output.remoteUrl }}`
-          2. Ajoutez vos scripts SQL dans `src/001_scripts/`
-          3. Mettez à jour `db-changelog.xml` pour inclure vos nouveaux changelogs
-          4. Le pipeline XL Deploy packagera les migrations automatiquement
+          2. Installez les dépendances : `npm install`
+          3. Lancez localement : `npm start`
+          4. Le pipeline CI démarre automatiquement au premier push
