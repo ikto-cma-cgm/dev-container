@@ -42,6 +42,12 @@
     }
   },
 
+  // Monte le répertoire cma-backstage (voisin de dev-container) dans le container.
+  // => /workspace/cma-backstage dans le container reflète ../cma-backstage sur l'hôte.
+  "mounts": [
+    "source=${localWorkspaceFolder}/../cma-backstage,target=/workspace/cma-backstage,type=bind,consistency=cached"
+  ],
+
   // Ports du container exposés sur ta machine hôte.
   // Si tu lances une app Backstage locale pour tester un template,
   // tu pourras y accéder via http://localhost:3000 et http://localhost:7007.

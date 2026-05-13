@@ -1,7 +1,0 @@
-- id: create_deployment_repo
-  name: Create Deployment Repository
-  action: publish:github
-  input:
-    allowedHosts: ['github.com']
-    repoUrl: github.com?owner=cma-cgm&repo=${{ parameters.artifact_id }}-deployment
-    description: ${{ parameters.description }} - Deployment artifacts
