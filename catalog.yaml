@@ -6,6 +6,6 @@ metadata:
   description: Templates générés par le dev container CMA CGM
 spec:
   targets:
-    - ./output/templates/springboot-service-template/template.yaml
-    - ./output/templates/liquibase-service-template/template.yaml
-    - ./output/templates/springboot-liquibase-composition-template/template.yaml
+    - https://github.com/ikto-cma-cgm/dev-container/raw/liquibase-springboot-composition/output/templates/springboot-service-template/template.yaml
+    - https://github.com/ikto-cma-cgm/dev-container/raw/liquibase-springboot-composition/output/templates/liquibase-service-template/template.yaml
+    - https://github.com/ikto-cma-cgm/dev-container/raw/liquibase-springboot-composition/output/templates/springboot-liquibase-composition-template/template.yaml
