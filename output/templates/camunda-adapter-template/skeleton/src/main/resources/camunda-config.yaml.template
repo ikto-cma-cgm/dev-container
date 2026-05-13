@@ -1,8 +1,0 @@
-camunda:
-  client:
-    mode: saas
-    auth:
-      client-id: XXXX
-      client-secret: YYYY
-    cluster-id: ZZZZ
-    region: EEEE

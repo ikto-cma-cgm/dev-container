@@ -1,7 +1,0 @@
-pipelineType: kubernetes
-provisionFor:
- - master 
- - develop
- - feature
- - release
- 
