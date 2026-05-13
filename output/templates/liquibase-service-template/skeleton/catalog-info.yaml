@@ -1,12 +1,21 @@
 apiVersion: backstage.io/v1alpha1
-kind: Resource
+kind: Component
 metadata:
-  name: ${{ values.name }}-liquibase-db
+  name: ${{ values.name }}
   description: ${{ values.description }}
+  tags:
+    - java
+    - backend
+  links:
+    - url: https://github.com/cma-cgm/${{ values.name }}
+      title: Repository
+      icon: github
   annotations:
     simpleicons.org/icon-slug: liquibase
+    backstage.io/techdocs-ref: dir:.
+    jenkins.io/job-full-name: cma-cgm/${{ values.name }}/main
 spec:
-  type: liquibase
+  type: service
   lifecycle: experimental
   owner: ${{ values.owner }}
   system: ${{ values.system }}

@@ -3,7 +3,7 @@ kind: Template
 metadata:
   name: liquibase-service-template
   title: Liquibase Database Migrations
-  description: Scaffolds a Liquibase migration project with db-changelog, deployit-manifest and Backstage Resource registration.
+  description: Scaffolds a Liquibase migration project with db-changelog, deployit-manifest and Backstage Component registration.
   annotations:
     simpleicons.org/icon-slug: liquibase
     backstage.io/techdocs-ref: dir:.
