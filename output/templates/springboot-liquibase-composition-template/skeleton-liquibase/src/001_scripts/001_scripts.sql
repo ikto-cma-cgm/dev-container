@@ -1,0 +1,2 @@
+-- Initialize database schema
+-- TODO: Add your migration scripts here

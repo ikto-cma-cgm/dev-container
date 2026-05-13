@@ -1,0 +1,13 @@
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: ${{ values.name }}-liquibase-db
+  description: ${{ values.description }}
+  annotations:
+    simpleicons.org/icon-slug: liquibase
+spec:
+  type: liquibase
+  lifecycle: experimental
+  owner: ${{ values.owner }}
+  system: ${{ values.system }}
+  domain: ${{ values.domain }}

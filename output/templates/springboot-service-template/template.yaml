@@ -1,0 +1,120 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: springboot-service-template
+  title: Spring Boot Microservice
+  description: Scaffolds a minimal Spring Boot 3 microservice with Maven, Docker, PostgreSQL and Backstage integration.
+  annotations:
+    simpleicons.org/icon-slug: springboot
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - application
+spec:
+  type: service
+  owner: group:default/it-development-software-engineering-developer-platform
+  parameters:
+    - title: Service identity
+      required: [name, description, owner]
+      properties:
+        name:
+          title: Service name
+          type: string
+          pattern: '^[a-z][a-z0-9-]*[a-z0-9]$'
+          ui:help: 'Kebab-case, unique dans le Catalog. Ex: quote-pricing-api'
+        description:
+          title: Description
+          type: string
+          ui:help: 'Une phrase décrivant le service. Apparaîtra dans le Catalog.'
+        owner:
+          title: Owner
+          type: string
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              - kind: Group
+          ui:help: 'Équipe responsable. Sera paginée en cas d''incident.'
+
+    - title: Catalog placement
+      required: [system, domain]
+      properties:
+        system:
+          title: System
+          type: string
+          ui:help: 'System Backstage auquel ce service appartient. Ex: pricing'
+        domain:
+          title: Domain
+          type: string
+          ui:help: 'Domain métier. Ex: finance, shipping, platform'
+
+    - title: Build configuration
+      required: [javaVersion, groupId]
+      properties:
+        javaVersion:
+          title: Java version
+          type: string
+          enum: ['17', '21']
+          default: '21'
+          ui:help: 'Version Java du serveur de runtime.'
+        groupId:
+          title: Maven Group ID
+          type: string
+          default: 'com.cma'
+          ui:help: 'Identifiant Maven du groupe. Ex: com.cma'
+        packageName:
+          title: Java package name
+          type: string
+          default: 'com.example.service'
+          ui:help: 'Package racine pour les classes Java. Ex: com.cma.pricing'
+        springBootVersion:
+          title: Spring Boot version
+          type: string
+          default: '3.4.2'
+          ui:help: 'Version de Spring Boot. Consultez les versions supportées sur spring.io'
+
+  steps:
+    - id: fetch-skeleton
+      name: Fetch skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          system: ${{ parameters.system }}
+          domain: ${{ parameters.domain }}
+          javaVersion: ${{ parameters.javaVersion }}
+          groupId: ${{ parameters.groupId }}
+          packageName: ${{ parameters.packageName }}
+          springBootVersion: ${{ parameters.springBootVersion }}
+
+    - id: publish-repo
+      name: Publish repository
+      action: publish:github
+      input:
+        allowedHosts: ['github.com']
+        repoUrl: github.com?owner=cma-cgm&repo=${{ parameters.name }}
+        description: ${{ parameters.description }}
+
+    - id: register-catalog
+      name: Register in catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish-repo'].output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps['publish-repo'].output.remoteUrl }}
+      - title: Open in Catalog
+        icon: catalog
+        url: ${{ steps['register-catalog'].output.entityRef }}
+    text:
+      - title: Next Steps
+        content: |
+          Service **${{ parameters.name }}** créé avec succès.
+          1. Clone : `git clone ${{ steps['publish-repo'].output.remoteUrl }}`
+          2. Installez les dépendances : `mvn clean install`
+          3. Lancez localement : `mvn spring-boot:run -Plocal`
+          4. Le pipeline CI démarre automatiquement au premier push

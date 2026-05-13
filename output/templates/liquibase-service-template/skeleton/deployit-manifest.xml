@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<udm.DeploymentPackage version="deployment_version-version_suffix" application="${{ values.application }}/${{ values.name }}">
+
+  <orchestrator />
+  <enableAutomaticOrchestrators>false</enableAutomaticOrchestrators>
+  <application />
+
+  <satisfiesReleaseNotes>false</satisfiesReleaseNotes>
+  <satisfiesPerformanceTested>false</satisfiesPerformanceTested>
+
+  <deployables>
+    <liquibase.Changelog name="${{ values.name | upper }}-${{ values.changelogName }}" file="src/001_scripts">
+      <tags>
+        <value>PAC-LIQUIBASE-DB</value>
+      </tags>
+      <scanPlaceholders>true</scanPlaceholders>
+      <preScannedPlaceholders>false</preScannedPlaceholders>
+      <placeholders />
+      <checksum>09f155b16fbda8dcb26fdc9a4c806a309a1c536e8d53e5f026764aad85ccd08b</checksum>
+      <fileEncodings>
+        <entry key=".+\.properties">ISO-8859-1</entry>
+      </fileEncodings>
+      <isRescanned>false</isRescanned>
+      <changeLogFile>db-changelog.xml</changeLogFile>
+      <rollbackVersion>1</rollbackVersion>
+    </liquibase.Changelog>
+  </deployables>
+
+  <applicationDependencies />
+  <dependencyResolution>LATEST</dependencyResolution>
+  <undeployDependencies>false</undeployDependencies>
+
+</udm.DeploymentPackage>

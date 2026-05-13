@@ -1,0 +1,19 @@
+pipelineType: java
+
+javaTool: ${{ 'JAVA_21' if (values.javaVersion === '21') else 'JAVA_17' }}
+mavenArgs: "-U -P=-local"
+
+runJavadoc: true
+runSonar: true
+runTests: true
+qualityGate: false
+provisioner: docker
+
+sonarProjectMainBranch: "master"
+sonarProjectQualityGate: "CMACGM-Global-Advanced"
+
+provisionFor:
+  - master
+  - develop
+  - feature
+  - hypercare
