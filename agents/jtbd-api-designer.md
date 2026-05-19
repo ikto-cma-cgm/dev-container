@@ -127,7 +127,7 @@ For each resource, which operations are needed?
 
 These rules align with the HIP Spectral ruleset. The spec produced in Phase 4 must respect them by construction.
 
-- **Plural noun routes** — `/orders`, not `/order`.
+- **Plural noun routes** — use the **plural of the entity name**, never a collective singular. `/orders`, not `/order`; `/audit-entries`, not `/audit-trail`; `/signatures`, not `/signature-set`. Collective nouns (trail, history, log, set) read as collections but are not plural — the linter flags them.
 - **No CRUD verbs in the path** — `POST /orders`, not `POST /createOrder`. Custom actions use the resource sub-path pattern `POST /orders/{id}/cancel`.
 - **`operationId`** — camelCase verb-noun: `createOrder`, `listOrders`, `getOrderById`, `cancelOrder`.
 - **camelCase parameter names** — `pageSize`, `customerId`, `createdAt`.
@@ -148,6 +148,7 @@ Each operation declares the following responses:
 | `401` | Unauthorized — **mandatory on every operation** |
 | `403` | Forbidden — **mandatory on every operation** |
 | `404` | Not found — **mandatory whenever the operation has a path parameter** |
+| `409` | Conflict — **add whenever a business state-transition can fail** (e.g. update on a `SIGNED` resource, sign on a non-pending resource, archive on a non-signed resource). Optional in the HIP ruleset but functionally required for any operation that mutates state with preconditions. |
 | `416` | Range not satisfiable — **mandatory on paginated `GET` collections** |
 | `500` | Internal server error — **mandatory on every operation** |
 
@@ -204,6 +205,8 @@ Every operation must include:
 
 ### `components`
 
+Factor reusable elements into `components` to keep `paths` lean and prevent drift across operations.
+
 - `securitySchemes` — one entry matching the auth mode collected in Phase 3:
   - `oauth2`: full `flows` block with placeholder URLs and scopes
   - `mtls`: `type: mutualTLS`
@@ -211,7 +214,8 @@ Every operation must include:
   - `bearer`: `type: http`, `scheme: bearer`, `bearerFormat: JWT`
 - `schemas.Error` — reusable error schema with at least `type`, `title`, `status`, `detail`, `instance` properties (RFC 7807 Problem Details style).
 - `schemas.<Resource>` — one entry per business resource, with `properties`, `required`, `example`.
-- `responses` — optional reusable response definitions (e.g. `UnauthorizedError`, `NotFoundError`) — recommended but not mandatory.
+- `parameters` — **factor every parameter that appears in more than one operation**: the `Range` request header for pagination, common path parameters (e.g. `{loaId}`), recurring query filters. Each is referenced via `$ref: '#/components/parameters/<Name>'` from `paths`. Reduces duplication, single source of truth for descriptions and examples.
+- `responses` — **factor the standard error responses** (`BadRequest`, `Unauthorized`, `Forbidden`, `NotFound`, `Conflict`, `RangeNotSatisfiable`, `InternalServerError`) and reference them via `$ref: '#/components/responses/<Name>'` from each operation. Each response wraps the shared `Error` schema. Without this, every operation declares the same 5–7 error responses inline — verbose and drift-prone.
 
 ### Examples
 
@@ -232,11 +236,14 @@ Before delivering the spec, run an internal structural self-check. Verify presen
 - [ ] Every operation has `operationId`, `summary`, `description`, `tags`, `security`
 - [ ] No CRUD verbs in any path
 - [ ] All paths use plural nouns
-- [ ] Every operation declares responses 400, 401, 403, 500 (+ 404 if path param, + 416 if paginated GET collection)
-- [ ] All `4xx`/`5xx` responses reference `#/components/schemas/Error`
-- [ ] `components.schemas.Error` defined
+- [ ] Every operation declares responses 400, 401, 403, 500 (+ 404 if path param, + 409 if stateful precondition, + 416 if paginated GET collection)
+- [ ] All `4xx`/`5xx` responses reference reusable response definitions in `components.responses` (which themselves wrap `#/components/schemas/Error`)
+- [ ] `components.schemas.Error` defined (RFC 7807 Problem Details)
 - [ ] `components.securitySchemes` populated and referenced by operations
+- [ ] `components.parameters` factors every parameter used in 2+ operations (pagination `Range`, common path params, recurring query filters)
+- [ ] `components.responses` factors the standard error responses (BadRequest, Unauthorized, Forbidden, NotFound, Conflict, RangeNotSatisfiable, InternalServerError)
 - [ ] No inline schemas outside `components/schemas/`
+- [ ] All collection paths use the **plural of the entity** (not collective singulars like `trail`, `history`, `log`)
 - [ ] Each endpoint maps to at least one acceptance criterion from Phase 2
 
 Fix anything missing in place, then output a short review report:
