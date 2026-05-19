@@ -129,6 +129,19 @@ spec:
           dbms: ${{ parameters.dbms }}
           changelogName: ${{ parameters.changelogName }}
 
+    - id: fetch-liquibase-skeleton
+      name: Fetch Liquibase migrations skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton-liquibase
+        targetPath: ./src/main/resources/db/migration
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          dbms: ${{ parameters.dbms }}
+          changelogName: ${{ parameters.changelogName }}
+
     - id: publish-repo
       name: Publish repository
       action: publish:github

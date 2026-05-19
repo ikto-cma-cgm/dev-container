@@ -21,16 +21,25 @@ metadata:
   tags:
     - application                    # R06 — tag catégorie obligatoire
 spec:
-  type: service                      # R05
+  type: <validType>                  # R05 — see scripts/lint-rules.yaml validTypes (service|library|website|pipeline|testing-tool|code-analysis|action)
   owner: group:<owner-group>         # R04
 ```
+
+`spec.type` reflects what the template *produces* :
+
+- `service` — Spring Boot / Node service running at runtime
+- `library` — versioned reusable asset (Liquibase migrations, shared lib, npm package)
+- `website` — static site / SPA
+- `pipeline`, `testing-tool`, `code-analysis`, `action` — automation tooling
+
+Extend `scripts/lint-rules.yaml` `validTypes` if a new category is needed.
 
 ### Paramètres obligatoires (tous templates)
 
 Les groupes de paramètres doivent suivre cet ordre :
 
 1. **Service identity** — `name`, `description`, `owner` (required)
-2. **Catalog placement** — `system`, `domain` (required)
+2. **Catalog placement** — `system` (required), `domain` (optional, **template parameter only** — not propagated to `catalog-info.yaml` `spec.domain` since that field is not part of the Backstage Component/Resource spec; use a domain-named `System` instead if needed)
 3. **<Domaine> configuration** — paramètres spécifiques au type de service
 4. **Repository destination** — `repoProvider`, `repoOwner` (required)
 
@@ -110,12 +119,13 @@ metadata:
     backstage.io/techdocs-ref: dir:.
     jenkins.io/job-full-name: cma-cgm/${{ values.name }}/main
 spec:
-  type: service
+  type: <validType>                 # R05 — service | library | website | ...
   lifecycle: experimental
   owner: ${{ values.owner }}
   system: ${{ values.system }}
-  domain: ${{ values.domain }}
 ```
+
+> Note: `spec.domain` is not part of the Backstage Component spec; do not include it in the skeleton `catalog-info.yaml`. The `domain` template parameter (when present) is informational only.
 
 ### Règles unitaires
 
@@ -137,22 +147,51 @@ Template qui assemble plusieurs composants en un seul dépôt et produit plusieu
 ├── docs/
 │   └── index.md
 ├── mkdocs.yml
-├── skeleton-app/                 # Skeleton principal → root du repo
-│   ├── catalog-info.yaml         # Component + Resource (multi-doc YAML)
+├── skeleton-app/                 # Main skeleton → repo root
+│   ├── catalog-info.yaml         # Component (+ optional Resource as multi-doc YAML)
 │   ├── README.md
 │   ├── mkdocs.yml
 │   ├── docs/
 │   │   └── index.md
-│   └── <fichiers du service>
-└── skeleton- phụ/                # Source de référence, non référencée dans template.yaml
-    └── <assets intégrés dans skeleton-app/>
+│   └── <service files>
+└── skeleton-<role>/              # Optional secondary skeleton(s) — see "Composition modes" below
+    ├── catalog-info.yaml         # Required by linter R12 (may be a Location stub)
+    ├── README.md                 # Required by linter R15
+    └── <secondary assets>
 ```
 
-### Principe de composition
+> The linter recognises `skeleton/` and `skeleton-*/` (glob) as skeleton directories. Each one must contain `catalog-info.yaml` + `README.md` (rules R12, R15).
 
-- `skeleton-app/` est le **conteneur principal** — seul skeleton référencé dans `template.yaml` via `fetch:template`
-- Tout skeleton secondaire est **déjà intégré** dans `skeleton-app/` au moment de la création du template
-- Le `fetch:template` ne pointe que vers un seul `url: ./skeleton-app`
+### Composition modes
+
+Two modes are supported for handling secondary assets in a composite. Choose per-template based on coupling and lifecycle needs.
+
+**Mode (a) — Embedded** : the secondary assets are pre-merged inside `skeleton-app/` at template authoring time. Only `skeleton-app/` is referenced by `fetch:template`. No `skeleton-<role>/` directory.
+
+- Pros: single fetch step, no path coordination, simpler
+- Cons: secondary asset cannot be reused independently; all changes go through `skeleton-app/`
+
+**Mode (b) — Separate skeletons** : each `skeleton-<role>/` is referenced by its own `fetch:template` step, with a dedicated `targetPath` placing it in the generated repo.
+
+```yaml
+steps:
+  - id: fetch-app-skeleton
+    action: fetch:template
+    input:
+      url: ./skeleton-app
+      values: {...}
+  - id: fetch-<role>-skeleton
+    action: fetch:template
+    input:
+      url: ./skeleton-<role>
+      targetPath: ./<dedicated/path>
+      values: {...}
+```
+
+- Pros: secondary asset has its own README/lifecycle; assets can be relocated in the scaffolded repo independently; closer to a true modular composite
+- Cons: extra fetch step per asset; catalog entities still need to be coordinated (avoid same `metadata.name` collision)
+
+Catalog registration remains driven by a **single root** `catalog-info.yaml` (multi-doc when more than one entity is needed). The `catalog-info.yaml` inside `skeleton-<role>/` is typically an inert linter-compliance stub (`kind: Location` with empty `targets`) — see e.g. `springboot-liquibase-composition-template/skeleton-liquibase/catalog-info.yaml`.
 
 ### catalog-info.yaml — Multi-doc
 
@@ -163,28 +202,28 @@ metadata:
   name: ${{ values.name }}
   # tags, links, annotations standards
 spec:
-  type: service
+  type: <validType>                 # R05 — service | library | website | ...
   lifecycle: experimental
   owner: ${{ values.owner }}
   system: ${{ values.system }}
-  domain: ${{ values.domain }}
   dependsOn:
-    - resource: ${{ values.name }}-<suffixe-ressource>
+    - resource: ${{ values.name }}-<resource-suffix>
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
-  name: ${{ values.name }}-<suffixe-ressource>
-  description: ${{ values.description }} - <description ressource>
+  name: ${{ values.name }}-<resource-suffix>
+  description: ${{ values.description }} - <resource description>
   annotations:
-    simpleicons.org/icon-slug: <icon-ressource>
+    simpleicons.org/icon-slug: <resource-icon>
 spec:
-  type: <type-ressource>
+  type: <resource-type>             # free-form resource type, e.g. "liquibase", "database"
   lifecycle: experimental
   owner: ${{ values.owner }}
   system: ${{ values.system }}
-  domain: ${{ values.domain }}
 ```
+
+> `spec.domain` is intentionally absent — not part of the Backstage Component/Resource spec.
 
 ### Règles composites
 
@@ -201,12 +240,12 @@ spec:
 
 | Aspect | Unit | Composite |
 |---|---|---|
-| Skeleton dirs | 1 (`skeleton/`) | 1 conteneur + N sources de référence |
-| fetch:template | 1 step | 1 step (vers skeleton conteneur) |
-| catalog-info.yaml | 1 Component | Component + Resource(s) (multi-doc `---`) |
-| dependsOn | Absent | Présent (Component → Resource) |
-| Pipeline | Unique | Unique (celui du service principal) |
-| Paramètres | Spécifiques au type | Fusionnés des composants |
+| Skeleton dirs | 1 (`skeleton/`) | 1 main (`skeleton-app/`) + 0–N secondary (`skeleton-<role>/`) |
+| fetch:template | 1 step | 1 step per skeleton dir (modes (a) embedded or (b) separate — see §3) |
+| catalog-info.yaml | 1 Component | Component (+ optional Resource(s) as multi-doc `---`) at the root; stubs in secondary skeletons |
+| dependsOn | Absent | Present when Resource(s) are declared (Component → Resource) |
+| Pipeline | Single | Single (main service pipeline) |
+| Parameters | Type-specific | Unified across components |
 
 ---
 
@@ -241,9 +280,10 @@ key: value-b
 
 ### Pour un template composite
 - [ ] Tout ce qui précède, PLUS :
-- [ ] `skeleton-app/` contient le skeleton fusionné (tous les composants intégrés)
-- [ ] Skeletons secondaires sont des sources de référence, non référencés dans `template.yaml`
-- [ ] `catalog-info.yaml` multi-doc avec `---`, 1 Component + 1+ Resource
-- [ ] `dependsOn` sur le Component vers chaque Resource
+- [ ] `skeleton-app/` contient le skeleton principal (le service runtime)
+- [ ] Mode de composition explicite : **(a) embedded** (assets secondaires fusionnés dans `skeleton-app/`) ou **(b) separate** (un `skeleton-<role>/` par asset secondaire + un `fetch:template` dédié avec `targetPath`) — voir §3
+- [ ] Pour le mode (b) : chaque `skeleton-<role>/` contient `catalog-info.yaml` + `README.md` (R12, R15) ; le `catalog-info.yaml` est un stub `kind: Location` si l'asset n'a pas sa propre entité
+- [ ] `catalog-info.yaml` racine multi-doc avec `---` si plusieurs entités à enregistrer (Component + Resource(s))
+- [ ] `dependsOn` sur le Component vers chaque Resource déclarée
 - [ ] Paramètres unifiés couvrant tous les composants
-- [ ] `README.md` mentionne tous les composants intégrés
+- [ ] `README.md` mentionne tous les composants intégrés et leur mode de composition

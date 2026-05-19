@@ -15,7 +15,7 @@ metadata:
     backstage.io/techdocs-ref: dir:.
     jenkins.io/job-full-name: cma-cgm/${{ values.name }}/main
 spec:
-  type: service
+  type: library
   lifecycle: experimental
   owner: ${{ values.owner }}
   system: ${{ values.system }}

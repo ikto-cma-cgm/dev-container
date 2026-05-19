@@ -14,6 +14,7 @@ identity:
   validTypes:
     - service
     - website
+    - library
     - pipeline
     - testing-tool
     - code-analysis
@@ -49,7 +50,17 @@ parameters:
     - action
 
 skeleton:
-  # R12, R15 — these files must exist in skeleton/
+  # Directory patterns recognized as skeleton directories for rules R12-R16.
+  # 'skeleton'   = standard unit template convention.
+  # 'skeleton-*' = composite Option C convention (pre-assembled skeleton with
+  #                multiple top-level dirs like skeleton-app/, skeleton-liquibase/).
+  # Glob: only '*' is treated as a wildcard suffix.
+  # If no matching directory is found, R12-R16 are SKIPPED (action-only template).
+  directoryPatterns:
+    - skeleton
+    - 'skeleton-*'
+
+  # R12, R15 — these files must exist in each detected skeleton directory
   requiredFiles:
     - catalog-info.yaml
     - README.md

@@ -27,6 +27,7 @@ const REQUIRED_SKELETON_FILES = config.skeleton.requiredFiles;
 const REQUIRED_ANNOTATIONS = config.skeleton.requiredAnnotations;
 const EXPECTED_LIFECYCLE = config.skeleton.lifecycle;
 const ALLOWED_EXPR_PREFIXES = config.skeleton.allowedExpressionPrefixes;
+const SKELETON_DIR_PATTERNS = config.skeleton.directoryPatterns || ['skeleton'];
 
 const KEBAB_CASE = /^[a-z][a-z0-9-]*[a-z0-9]$/;
 const EMOJI_REGEX = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}]/u;
@@ -61,6 +62,36 @@ function getAllProperties(parameters) {
     }
   }
   return all;
+}
+
+// ─── Skeleton directory discovery ────────────────────────────────────────────
+
+// Simple glob matcher: '*' as wildcard, anchored to full name.
+// Examples: matchesPattern('skeleton', 'skeleton') = true
+//           matchesPattern('skeleton-app', 'skeleton-*') = true
+//           matchesPattern('foo', 'skeleton-*') = false
+function matchesPattern(name, pattern) {
+  if (!pattern.includes('*')) return name === pattern;
+  const regexSrc = '^' + pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$';
+  return new RegExp(regexSrc).test(name);
+}
+
+// Return all immediate subdirectories of templateDir that match any of the
+// configured skeleton directory patterns (e.g., 'skeleton', 'skeleton-*').
+// Returns an array of { name, path }.
+function findSkeletonDirs(templateDir) {
+  if (!existsSync(templateDir)) return [];
+  const found = [];
+  for (const entry of readdirSync(templateDir)) {
+    const fullPath = join(templateDir, entry);
+    let isDir;
+    try { isDir = statSync(fullPath).isDirectory(); } catch { continue; }
+    if (!isDir) continue;
+    if (SKELETON_DIR_PATTERNS.some(p => matchesPattern(entry, p))) {
+      found.push({ name: entry, path: fullPath });
+    }
+  }
+  return found;
 }
 
 // ─── Rules ───────────────────────────────────────────────────────────────────
@@ -153,43 +184,65 @@ function r11_ui_help(data) {
 }
 
 function r12_skeleton_catalog(dir) {
+  const skeletons = findSkeletonDirs(dir);
+  if (skeletons.length === 0) return { status: 'SKIP', detail: 'no skeleton/ or skeleton-*/ directory (may be intentional for action templates)' };
   const file = REQUIRED_SKELETON_FILES[0];
-  const path = join(dir, 'skeleton', file);
-  if (!existsSync(path)) return { status: 'SKIP', detail: `no skeleton/${file} (may be intentional for action templates)` };
-  return { status: 'PASS' };
+  const missing = skeletons.filter(s => !existsSync(join(s.path, file))).map(s => s.name);
+  if (missing.length > 0) return { status: 'FAIL', detail: `missing ${file} in: ${missing.join(', ')}` };
+  return { status: 'PASS', detail: `checked: ${skeletons.map(s => s.name).join(', ')}` };
 }
 
 function r13_techdocs_annotation(dir) {
-  const path = join(dir, 'skeleton', 'catalog-info.yaml');
-  if (!existsSync(path)) return { status: 'SKIP', detail: 'no skeleton/catalog-info.yaml' };
-  const content = readFileSync(path, 'utf8');
-  const missing = REQUIRED_ANNOTATIONS.filter(a => !content.includes(a));
-  if (missing.length > 0) return { status: 'FAIL', detail: `missing annotations: ${missing.join(', ')}` };
+  const skeletons = findSkeletonDirs(dir);
+  if (skeletons.length === 0) return { status: 'SKIP', detail: 'no skeleton/ or skeleton-*/ directory' };
+  const withCatalog = skeletons.filter(s => existsSync(join(s.path, 'catalog-info.yaml')));
+  if (withCatalog.length === 0) return { status: 'SKIP', detail: 'no catalog-info.yaml in any skeleton dir' };
+  const issues = [];
+  for (const s of withCatalog) {
+    const content = readFileSync(join(s.path, 'catalog-info.yaml'), 'utf8');
+    const missing = REQUIRED_ANNOTATIONS.filter(a => !content.includes(a));
+    if (missing.length > 0) issues.push(`${s.name}: missing ${missing.join(', ')}`);
+  }
+  if (issues.length > 0) return { status: 'FAIL', detail: issues.join('; ') };
   return { status: 'PASS' };
 }
 
 function r14_lifecycle(dir) {
-  const path = join(dir, 'skeleton', 'catalog-info.yaml');
-  if (!existsSync(path)) return { status: 'SKIP', detail: 'no skeleton/catalog-info.yaml' };
-  const content = readFileSync(path, 'utf8');
+  const skeletons = findSkeletonDirs(dir);
+  if (skeletons.length === 0) return { status: 'SKIP', detail: 'no skeleton/ or skeleton-*/ directory' };
+  const withCatalog = skeletons.filter(s => existsSync(join(s.path, 'catalog-info.yaml')));
+  if (withCatalog.length === 0) return { status: 'SKIP', detail: 'no catalog-info.yaml in any skeleton dir' };
   const expected = EXPECTED_LIFECYCLE;
-  const lifecycleMatch = content.match(/lifecycle:\s*(\S+)/);
-  if (!lifecycleMatch) return { status: 'FAIL', detail: `lifecycle is not set (expected "${expected}")` };
-  const actual = lifecycleMatch[1];
-  if (actual !== expected) return { status: 'FAIL', detail: `lifecycle is "${actual}", expected "${expected}"` };
+  const issues = [];
+  for (const s of withCatalog) {
+    const content = readFileSync(join(s.path, 'catalog-info.yaml'), 'utf8');
+    // Multi-doc YAML support: catch every "lifecycle: X" occurrence
+    // (composite Option C may have Component + Resource in one file).
+    const matches = [...content.matchAll(/lifecycle:\s*(\S+)/g)];
+    if (matches.length === 0) {
+      issues.push(`${s.name}: lifecycle not set (expected "${expected}")`);
+      continue;
+    }
+    for (const m of matches) {
+      if (m[1] !== expected) issues.push(`${s.name}: lifecycle "${m[1]}", expected "${expected}"`);
+    }
+  }
+  if (issues.length > 0) return { status: 'FAIL', detail: issues.join('; ') };
   return { status: 'PASS' };
 }
 
 function r15_skeleton_readme(dir) {
+  const skeletons = findSkeletonDirs(dir);
+  if (skeletons.length === 0) return { status: 'SKIP', detail: 'no skeleton/ or skeleton-*/ directory (may be intentional for action templates)' };
   const file = REQUIRED_SKELETON_FILES[1];
-  const path = join(dir, 'skeleton', file);
-  if (!existsSync(path)) return { status: 'SKIP', detail: `no skeleton/${file} (may be intentional for action templates)` };
+  const missing = skeletons.filter(s => !existsSync(join(s.path, file))).map(s => s.name);
+  if (missing.length > 0) return { status: 'FAIL', detail: `missing ${file} in: ${missing.join(', ')}` };
   return { status: 'PASS' };
 }
 
 function r16_no_leftover_syntax(dir) {
-  const skeletonDir = join(dir, 'skeleton');
-  if (!existsSync(skeletonDir)) return { status: 'SKIP', detail: 'no skeleton directory' };
+  const skeletons = findSkeletonDirs(dir);
+  if (skeletons.length === 0) return { status: 'SKIP', detail: 'no skeleton/ or skeleton-*/ directory' };
 
   const issues = [];
   function scanDir(d) {
@@ -207,7 +260,7 @@ function r16_no_leftover_syntax(dir) {
       }
     }
   }
-  scanDir(skeletonDir);
+  for (const s of skeletons) scanDir(s.path);
 
   if (issues.length > 0) return { status: 'FAIL', detail: `suspicious expressions: ${issues.join('; ')}` };
   return { status: 'PASS' };

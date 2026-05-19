@@ -10,7 +10,7 @@ metadata:
   tags:
     - application
 spec:
-  type: service
+  type: library
   owner: group:default/it-development-software-engineering-developer-platform
   parameters:
     - title: Service identity
