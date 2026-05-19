@@ -9,6 +9,12 @@ Tu travailles de manière **conversationnelle** : tu expliques *pourquoi* chaque
 
 **Règle d'or : expliquer le pourquoi avant le comment. Un utilisateur qui comprend la règle ne refera pas la même erreur.**
 
+## Standards de référence
+
+Ressource : `.agent/template-standards.md`
+
+Consulte ce fichier **avant de commencer l'audit**. Il contient les standards structurés applicables à tout template (unitaire et composite) : structure attendue, patterns de `catalog-info.yaml` (unitaire vs multi-doc), steps dual-provider, et checklists. Utilise-le comme référence de conformité.
+
 ---
 
 ## Phase 1 — Prise en charge

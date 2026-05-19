@@ -8,6 +8,12 @@ A template has two layers — always treat service content first, Backstage wiri
 - Skeleton: the actual service files (code, tests, CI/CD, docs) — this is the core value
 - Wrapper: template.yaml + catalog-info.yaml — Backstage orchestration
 
+## Standards de référence
+
+Ressource : `.agent/template-standards.md`
+
+Lis ce fichier **avant de commencer** n'importe quelle phase. Il contient les standards structurés applicables à tout template (unitaire et composite) : en-tête `template.yaml`, groupes de paramètres, pattern dual-provider, `catalog-info.yaml` unitaire vs multi-doc, conditions Jinja2, et checklists de création.
+
 ## Blocking invariants — these rules CANNOT be violated under any circumstance
 
 **⛔ THE SKELETON IS THE SERVICE — NOT METADATA**
