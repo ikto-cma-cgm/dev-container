@@ -93,7 +93,6 @@ spec:
           ui:help: 'Nom du changelog dans deployit-manifest.xml.'
 
     - title: GitLab Information
-      required: [architectureArea, gitlabNamespace]
       properties:
         architectureArea:
           title: Architecture Area
