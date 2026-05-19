@@ -53,7 +53,40 @@ spec:
           title: OpenAPI spec URL
           type: string
           pattern: '^https?://.*\.ya?ml$|^https?://.*\.json$'
-          ui:help: 'URL de la spécification OpenAPI/Swagger (YAML ou JSON) qui définit les endpoints du service.'
+          ui:help: 'URL de la spécification OpenAPI/Swagger (YAML ou JSON). La spec doit être HIP-compliant (rédigée idéalement via l''agent opencode jtbd-api-designer et validée Spectral).'
+
+    - title: HIP metadata
+      properties:
+        hopexComponentCode:
+          title: HOPEX component code
+          type: string
+          pattern: '^CP\d+$'
+          ui:help: 'Code du composant HOPEX (Enterprise Architecture). Ex: CP00141. Optionnel mais recommandé. Exposé via l''annotation cma-cgm.com/hopex-code.'
+        apiType:
+          title: API type
+          type: string
+          enum: [system, business, experience]
+          ui:help: 'Classification selon le pattern HIP API-led 3-tiers. system = asset core, business = orchestration, experience = consumer-specific.'
+        apiLead:
+          title: API Lead
+          type: string
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              - kind: Group
+          ui:help: 'Groupe propriétaire métier de l''API. Distinct de owner (équipe de dev) et de apiFactory (équipe de build).'
+        apiFactory:
+          title: API Factory
+          type: string
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              - kind: Group
+          ui:help: 'Groupe qui construit l''API (typiquement l''équipe Spring Boot de dev).'
+        apiDomainArchitectural:
+          title: Architectural domain (x-domain)
+          type: string
+          ui:help: 'Domaine architectural HIP pour l''extension x-domain de la spec. Souvent identique au champ Domain ci-dessus, mais peut différer.'
 
     - title: Build configuration
       required: [javaVersion, groupId]
@@ -160,6 +193,11 @@ spec:
           packageName: ${{ parameters.packageName }}
           springBootVersion: ${{ parameters.springBootVersion }}
           springCloudVersion: ${{ parameters.springCloudVersion }}
+          hopexComponentCode: ${{ parameters.hopexComponentCode }}
+          apiType: ${{ parameters.apiType }}
+          apiLead: ${{ parameters.apiLead }}
+          apiFactory: ${{ parameters.apiFactory }}
+          apiDomainArchitectural: ${{ parameters.apiDomainArchitectural }}
 
     - id: fetch-openapi-spec
       name: Fetch OpenAPI spec
@@ -211,3 +249,5 @@ spec:
           4. Compilez et lancez : `mvn clean install` puis `mvn spring-boot:run -Plocal`
           5. Swagger UI disponible sur `http://localhost:8080/swagger-ui.html`
           6. Le pipeline CI démarrera automatiquement au premier push
+
+          La spec source doit être HIP-compliant. Si elle ne l'est pas encore, lancez l'agent opencode jtbd-api-designer pour (re)générer une version conforme.

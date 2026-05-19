@@ -29,6 +29,9 @@
         "sst-dev.opencode",
         // Validation YAML avec schémas JSON Schema (erreurs inline)
         "redhat.vscode-yaml",
+        // Linter OpenAPI/Spectral — applique le ruleset HIP en temps réel pendant l'édition
+        // d'une spec OpenAPI/Swagger (3 niveaux de validation : IDE → form Backstage → HIP gate).
+        "stoplight.spectral",
         // Syntax highlighting pour Nunjucks (le langage de templating de Backstage)
         "ronnidc.nunjucks"
       ],
