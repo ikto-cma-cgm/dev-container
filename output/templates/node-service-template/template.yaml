@@ -64,17 +64,49 @@ spec:
           default: 'NODE_22'
           ui:help: "Code outil Node.js pour le pipeline. NODE_22 pour Node 22, NODE_20 pour Node 20."
 
-    - title: GitLab Information
-      required: [architectureArea, gitlabNamespace]
+    - title: Repository platform
+      required: [publishPlatform]
       properties:
-        architectureArea:
-          title: Architecture Area
+        publishPlatform:
+          title: Publish to
           type: string
-          ui:help: 'Domaine d''architecture en GitLab. Ex: finance, shipping, platform'
+          enum: ['github', 'gitlab']
+          default: 'github'
+          enumNames:
+            - "GitHub"
+            - "GitLab"
+          ui:help: 'Plateforme de publication du repository (mutuellement exclusif).'
+
+    - title: GitHub Information
+      required: [githubOwner]
+      properties:
+        githubOwner:
+          title: GitHub Owner
+          type: string
+          default: 'cma-cgm'
+          ui:help: 'Organisation ou utilisateur GitHub propriétaire du repository.'
+      when: ${{ parameters.publishPlatform === 'github' }}
+
+    - title: GitLab Information
+      required: [gitlabNamespace, gitlabHost]
+      properties:
+        gitlabHost:
+          title: GitLab Host
+          type: string
+          default: 'gitlab.com'
+          ui:help: 'Hôte GitLab. Ex: gitlab.com ou gitlab.cma-cgm.com'
         gitlabNamespace:
           title: GitLab Namespace
           type: string
           ui:help: 'Espace de noms GitLab pour le projet. Ex: pricing-services'
+      when: ${{ parameters.publishPlatform === 'gitlab' }}
+
+    - title: Architecture
+      properties:
+        architectureArea:
+          title: Architecture Area
+          type: string
+          ui:help: 'Domaine d''architecture. Ex: finance, shipping, platform'
 
   steps:
     - id: fetch-skeleton
@@ -91,25 +123,36 @@ spec:
           nodeVersion: ${{ parameters.nodeVersion }}
           nodejsVersion: ${{ parameters.nodejsVersion }}
 
-    - id: publish-repo
-      name: Publish repository
+    - id: publish-github
+      name: Publish on GitHub
+      if: ${{ parameters.publishPlatform === 'github' }}
       action: publish:github
       input:
         allowedHosts: ['github.com']
-        repoUrl: github.com?owner=cma-cgm&repo=${{ parameters.name }}
+        repoUrl: github.com?owner=${{ parameters.githubOwner }}&repo=${{ parameters.name }}
+        description: ${{ parameters.description }}
+
+    - id: publish-gitlab
+      name: Publish on GitLab
+      if: ${{ parameters.publishPlatform === 'gitlab' }}
+      action: publish:gitlab
+      input:
+        allowedHosts: ["${{ parameters.gitlabHost }}"]
+        repoUrl: ${{ parameters.gitlabHost }}?owner=${{ parameters.gitlabNamespace }}&repo=${{ parameters.name }}
+        defaultBranch: main
         description: ${{ parameters.description }}
 
     - id: register-catalog
       name: Register in catalog
       action: catalog:register
       input:
-        repoContentsUrl: ${{ steps['publish-repo'].output.repoContentsUrl }}
+        repoContentsUrl: "${{ parameters.publishPlatform === 'github' ? steps['publish-github'].output.repoContentsUrl : steps['publish-gitlab'].output.repoContentsUrl }}"
         catalogInfoPath: /catalog-info.yaml
 
   output:
     links:
       - title: Repository
-        url: ${{ steps['publish-repo'].output.remoteUrl }}
+        url: "${{ parameters.publishPlatform === 'github' ? steps['publish-github'].output.remoteUrl : steps['publish-gitlab'].output.remoteUrl }}"
       - title: Open in Catalog
         icon: catalog
         url: ${{ steps['register-catalog'].output.entityRef }}
@@ -117,7 +160,7 @@ spec:
       - title: Next Steps
         content: |
           Service **${{ parameters.name }}** créé avec succès.
-          1. Clone : `git clone ${{ steps['publish-repo'].output.remoteUrl }}`
+          1. Clone : `git clone ${{ parameters.publishPlatform === 'github' ? steps['publish-github'].output.remoteUrl : steps['publish-gitlab'].output.remoteUrl }}`
           2. Installez les dépendances : `npm install`
           3. Lancez localement : `npm start`
           4. Le pipeline CI démarre automatiquement au premier push
