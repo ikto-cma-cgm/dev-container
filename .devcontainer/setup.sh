@@ -46,4 +46,21 @@ node -e '
 
   fs.writeFileSync(path.join(confDir, "opencode.json"), JSON.stringify(conf, null, 2) + "\n");
   console.log("✅ opencode configuré — modèle : local/" + modelId + " | base : " + env.AI_API_BASE);
+
+  // Symlinks agents/versionned → ~/.config/opencode/agent/ pour qu'opencode les charge.
+  const agentDir = path.join(confDir, "agent");
+  fs.mkdirSync(agentDir, { recursive: true });
+  const repoAgents = path.join(process.cwd(), "agents");
+  if (fs.existsSync(repoAgents)) {
+    const files = fs.readdirSync(repoAgents);
+    for (const file of files) {
+      if (file.endsWith(".md")) {
+        const src = path.join(repoAgents, file);
+        const dst = path.join(agentDir, file);
+        if (fs.existsSync(dst)) fs.unlinkSync(dst);
+        fs.symlinkSync(src, dst, "file");
+      }
+    }
+    console.log("✅ agents symlinked → " + agentDir);
+  }
 '
