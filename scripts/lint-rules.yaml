@@ -18,7 +18,6 @@ identity:
     - testing-tool
     - code-analysis
     - action
-    - library
 
   # R06 — at least one of these tags must be present
   categoryTags:
