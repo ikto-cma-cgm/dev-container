@@ -1,0 +1,167 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: springboot-swagger-service-template
+  title: Spring Boot Microservice from OpenAPI Spec
+  description: Scaffolds a Spring Boot 3 microservice with API code generated from an OpenAPI/Swagger specification, Maven, Docker, PostgreSQL and Backstage integration.
+  annotations:
+    simpleicons.org/icon-slug: springboot
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - application
+spec:
+  type: service
+  owner: group:default/it-development-software-engineering-developer-platform
+  parameters:
+    - title: Service identity
+      required: [name, description, owner]
+      properties:
+        name:
+          title: Service name
+          type: string
+          pattern: '^[a-z][a-z0-9-]*[a-z0-9]$'
+          ui:help: 'Kebab-case, unique dans le Catalog. Ex: quote-pricing-api'
+        description:
+          title: Description
+          type: string
+          ui:help: 'Une phrase dÃ©crivant le service. ApparaÃ®tra dans le Catalog.'
+        owner:
+          title: Owner
+          type: string
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              - kind: Group
+          ui:help: 'Ãquipe responsable. Sera paginÃ©e en cas d''incident.'
+
+    - title: Catalog placement
+      required: [system, domain]
+      properties:
+        system:
+          title: System
+          type: string
+          ui:help: 'System Backstage auquel ce service appartient. Ex: pricing'
+        domain:
+          title: Domain
+          type: string
+          ui:help: 'Domain mÃ©tier. Ex: finance, shipping, platform'
+
+    - title: OpenAPI specification
+      required: [swaggerUrl]
+      properties:
+        swaggerUrl:
+          title: OpenAPI spec URL
+          type: string
+          pattern: '^https?://.*\.ya?ml$|^https?://.*\.json$'
+          ui:help: 'URL de la spÃ©cification OpenAPI/Swagger (YAML ou JSON) qui dÃ©finit les endpoints du service.'
+
+    - title: Build configuration
+      required: [javaVersion, groupId]
+      properties:
+        javaVersion:
+          title: Java version
+          type: string
+          enum: ['17', '21']
+          default: '21'
+          ui:help: 'Version Java du serveur de runtime.'
+        javaTool:
+          title: Java Tool
+          type: string
+          default: 'JAVA_21'
+          ui:help: "Code outil Java pour le pipeline. JAVA_21 pour Java 21, JAVA_17 pour Java 17."
+        groupId:
+          title: Maven Group ID
+          type: string
+          default: 'com.cma'
+          ui:help: 'Identifiant Maven du groupe. Ex: com.cma'
+        packageName:
+          title: Java package name
+          type: string
+          default: 'com.example.service'
+          ui:help: 'Package racine pour les classes Java. Ex: com.cma.pricing'
+        springBootVersion:
+          title: Spring Boot version
+          type: string
+          default: '3.4.2'
+          ui:help: 'Version de Spring Boot. Consultez les versions supportÃ©es sur spring.io'
+        springCloudVersion:
+          title: Spring Cloud version
+          type: string
+          default: '2024.0.0'
+          ui:help: 'Version de Spring Cloud.'
+
+    - title: GitLab Information
+      required: [architectureArea, gitlabNamespace]
+      properties:
+        architectureArea:
+          title: Architecture Area
+          type: string
+          ui:help: 'Domaine d''architecture en GitLab. Ex: finance, shipping, platform'
+        gitlabNamespace:
+          title: GitLab Namespace
+          type: string
+          ui:help: 'Espace de noms GitLab pour le projet. Ex: pricing-services'
+        dockerImagePrefix:
+          title: Docker Image Prefix
+          type: string
+          default: 'eu.gcr.io/cma-cgm'
+          ui:help: 'PrÃ©fixe du registry Docker.'
+
+  steps:
+    - id: fetch-skeleton
+      name: Fetch skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          system: ${{ parameters.system }}
+          domain: ${{ parameters.domain }}
+          javaVersion: ${{ parameters.javaVersion }}
+          javaTool: ${{ parameters.javaTool }}
+          groupId: ${{ parameters.groupId }}
+          packageName: ${{ parameters.packageName }}
+          springBootVersion: ${{ parameters.springBootVersion }}
+          springCloudVersion: ${{ parameters.springCloudVersion }}
+
+    - id: fetch-openapi-spec
+      name: Fetch OpenAPI spec
+      action: fetch:plain-text
+      input:
+        url: ${{ parameters.swaggerUrl }}
+        targetUrl: src/main/resources/api/openapi.yaml
+
+    - id: publish-repo
+      name: Publish repository
+      action: publish:github
+      input:
+        allowedHosts: ['github.com']
+        repoUrl: github.com?owner=cma-cgm&repo=${{ parameters.name }}
+        description: ${{ parameters.description }}
+
+    - id: register-catalog
+      name: Register in catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish-repo'].output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps['publish-repo'].output.remoteUrl }}
+      - title: Open in Catalog
+        icon: catalog
+        url: ${{ steps['register-catalog'].output.entityRef }}
+    text:
+      - title: Next Steps
+        content: |
+          Service **${{ parameters.name }}** crÃ©Ã© avec succÃ¨s (API gÃ©nÃ©rÃ©e depuis la spÃ©cification OpenAPI).
+          1. Clone : `git clone ${{ steps['publish-repo'].output.remoteUrl }}`
+          2. GÃ©nÃ©rez le code API : `mvn generate-sources`
+          3. ImplÃ©mentez les delegate interfaces dans `${{ parameters.packageName }}.api.service.delegate`
+          4. Compilez et lancez : `mvn clean install` puis `mvn spring-boot:run -Plocal`
+          5. Swagger UI disponible sur `http://localhost:8080/swagger-ui.html`
+          6. Le pipeline CI dÃ©marrera automatiquement au premier push
