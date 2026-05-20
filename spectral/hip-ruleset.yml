@@ -1,0 +1,669 @@
+extends: "spectral:oas"
+
+rules:
+
+  # ===========================================================================
+  # BLOCK 1 — CRITICAL: Specification Foundations
+  # These rules fully block the publication of the API.
+  # ===========================================================================
+
+  # [B1-01] Swagger Version — Swagger 2.0 not allowed
+  openapi-version-must-be-openApiVersion:
+    message: "BLOCK 1 | Swagger 2.0 not allowed — Only OpenAPI 3.x is accepted."
+    description: >
+      The use of Swagger 2.0 is forbidden.
+      The specification must use OpenAPI 3.x (e.g.: openapi: 3.0.1).
+      Action: Upgrade specification to OpenAPI 3.
+    severity: error
+    given: "$"
+    then:
+      field: swagger
+      function: undefined
+
+  openapi-version-must-be-3:
+    message: "BLOCK 1 | Swagger 2.0 not allowed — Only OpenAPI 3.x is accepted."
+    description: >
+      The use of Swagger 2.0 is forbidden.
+      The specification must use OpenAPI 3.x (e.g.: openapi: 3.0.1).
+      Action: Upgrade specification to OpenAPI 3.
+    severity: error
+    given: $.openapi
+    then:
+      function: pattern
+      functionOptions:
+        match: "^3\\.0\\.\\d+$"
+
+  # [B1-02] API Information — API title missing
+  api-info-title-quality:
+    description: >
+      The title must clearly identify the API without using the word "API"
+      or redundant words (Service, REST, Microservice, Endpoint, WS...).
+      It must be concise and business-oriented (minimum 5 characters).
+      Additional rule: title must not contain "API" nor any redundant word.
+    severity: error
+    given: "$.info.title"
+    then:
+      - function: truthy
+        message: "BLOCK 1 | The info.title field is missing or empty."
+      - function: pattern
+        message: >-
+          BLOCK 1 | The title must clearly identify the API without using the word "API" or
+          redundant words (Service, REST, Microservice, Endpoint, WS...).
+        functionOptions:
+          notMatch: "(^|[^a-zA-Z])(API|Service|REST|Microservice|Endpoint|WS)([^a-zA-Z]|$)"
+
+  # [B1-03] API Information — API version missing
+  api-info-version-required:
+    message: "BLOCK 1 | The API version (info.version) is missing."
+    description: >
+      info.version must be defined to manage lifecycle and backward compatibility.
+      Action: Fill in info.version (e.g.: 1.0.0).
+    severity: error
+    given: "$.info"
+    then:
+      field: version
+      function: truthy
+
+  # [B1-04] API Information — API description missing
+  api-info-description-required:
+    message: "BLOCK 1 | The API description (info.description) is missing."
+    description: >
+      info.description must describe the purpose of the API.
+      It must be longer than the title.
+      Action: Fill in info.description with a functional description.
+    severity: error
+    given: "$.info"
+    then:
+      field: description
+      function: truthy
+
+  # [B1-05] API Information — x-hopex missing
+  api-x-hopex-required:
+    message: "BLOCK 1 | The x-hopex extension (Hopex componentCode) is missing."
+    description: >
+      The x-hopex field must reference the Hopex component code of the API (e.g.: componentCode: CP00141).
+      Action: Add the x-hopex extension with the correct componentCode.
+    severity: error
+    given: "$.info"
+    then:
+      field: x-hopex
+      function: defined
+
+  # [B1-06] API Information — x-api-type missing
+  api-x-api-type-required:
+    message: "BLOCK 1 | The x-api-type extension (API classification) is missing."
+    description: >
+      The x-api-type field classifies the API (e.g.: system, business, experience).
+      Action: Add x-api-type with the appropriate value.
+    severity: error
+    given: "$.info"
+    then:
+      field: x-api-type
+      function: defined
+
+  # [B1-07] API Information — x-contacts missing
+  api-x-contacts-required:
+    message: "BLOCK 1 | The x-contacts extension (api-lead & api-factory) is missing."
+    description: >
+      The x-contacts field must identify the API owners (api-lead and api-factory).
+      Action: Add x-contacts with the appropriate contacts.
+    severity: error
+    given: "$.info"
+    then:
+      field: x-contacts
+      function: defined
+
+  # [B1-08] API Information — x-domain missing
+  api-x-domain-required:
+    message: "BLOCK 1 | The x-domain extension (architecture domain) is missing."
+    description: >
+      The x-domain field must specify the architecture domain (from the associated Jira ticket).
+      Action: Add x-domain with the functional/architectural scope.
+    severity: error
+    given: "$.info"
+    then:
+      field: x-domain
+      function: defined
+
+  # [B1-09] Security — Security scheme missing
+  security-scheme-required:
+    message: "BLOCK 1 | The security schemes (components.securitySchemes) are missing."
+    description: >
+      components.securitySchemes must be defined when the API is secured.
+      Each scope should correspond to the relevant data domain.
+      Action: Define the authentication model (OAuth2, Bearer...).
+    severity: error
+    given: "$.components"
+    then:
+      field: securitySchemes
+      function: truthy
+
+  # [B1-10] Response Contract — Response schema missing
+  response-2xx-schema-required:
+    message: "BLOCK 1 | 2xx responses must define a payload contract, except 202 and 204."
+    description: >
+      Each 2xx response must define a payload contract via content.
+      Exceptions: 202 Accepted and 204 No Content responses.
+      Action: Add a response schema for all relevant 2xx responses.
+    severity: error
+    given: "$.paths[*][*].responses"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          patternProperties:
+            "^(20[01356789]|21[0-9]|22[0-9]|23[0-9]|24[0-9]|25[0-9]|26[0-9]|27[0-9]|28[0-9]|29[0-9])$":
+              type: object
+              required:
+                - content
+
+  # [B1-11] Data Model — Object schema must define structure
+  object-must-define-properties:
+    message: "BLOCK 1 | A schema of type 'object' defines no structure (properties, allOf, oneOf, anyOf or additionalProperties expected)."
+    description: >
+      A schema of type object must define its structure.
+      Valid structures include properties, composition keywords (allOf/oneOf/anyOf)
+      or additionalProperties for map-like objects.
+      Action: Define a valid object structure or reference an existing schema.
+    severity: error
+    given: "$.components.schemas[?(@.type == 'object')]"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          anyOf:
+            - required: [properties]
+            - required: [allOf]
+            - required: [oneOf]
+            - required: [anyOf]
+            - required: [additionalProperties]
+
+  # ===========================================================================
+  # BLOCK 2 — BLOCKING ENDPOINT
+  # Quality and conformity of endpoints.
+  # ===========================================================================
+
+  # [B2-01] Endpoint — operationId missing
+  operation-operationid-required:
+    message: "BLOCK 2 | operationId is missing on this operation."
+    description: >
+      Each operation must define a unique and explicit operationId.
+      It is used for client code generation and traceability.
+      Action: Add a descriptive operationId (e.g.: getCustomerById, createOrder).
+    severity: error
+    given: "$.paths[*][get,post,put,patch,delete,options,head,trace]"
+    then:
+      field: operationId
+      function: truthy
+
+  # [B2-02] Endpoint — operationId duplicated
+  # Covered by native spectral:oas rule "operation-operationId-unique".
+
+  # [B2-03] Endpoint — summary missing
+  operation-summary-required:
+    message: "BLOCK 2 | The summary is missing on this operation."
+    description: >
+      Each endpoint should have a short and readable summary.
+      It appears in API portals and generated documentation.
+      Action: Add a one-line summary (e.g.: \"Retrieve a customer by ID\").
+    severity: hint
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: summary
+      function: truthy
+
+  # [B2-04] Endpoint — description missing
+  operation-description-required:
+    message: "BLOCK 2 | The description is missing on this operation."
+    description: >
+      The endpoint behavior must be documented.
+      Action: Add a precise functional description of the operation.
+    severity: error
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: description
+      function: truthy
+
+  # [B2-05] Endpoint — Incorrect HTTP method usage
+  no-crud-verbs-in-path:
+    message: "BLOCK 2 | The URL path '{{path}}' contains an action verb — use resource-oriented nouns."
+    description: >
+      Paths must be resource-oriented (nouns), not action-oriented (verbs).
+      HTTP method must reflect the intended operation.
+      e.g.: GET /customers rather than GET /getCustomers.
+      Action: Rename the path using resource nouns.
+    severity: error
+    given: "$.paths[*]~"
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "/(get|create|update|delete|list|fetch|retrieve|add|remove|post|put|patch)/i"
+
+  # [B2-06] Endpoint — Security not defined at endpoint level
+  operation-security-defined:
+    message: "BLOCK 2 | The security block is not defined on this operation."
+    description: >
+      Sensitive operations should explicitly declare their security.
+      If security is defined globally, this rule can be considered satisfied.
+      Action: Add the security block with the appropriate scheme or rely on a documented global security block.
+    severity: warn
+    given: "$.paths[*][get,post,put,delete,patch,options,head]"
+    then:
+      field: security
+      function: truthy
+
+  # [B2-07] Endpoint — Missing authorization scope
+  operation-security-scopes-defined:
+    message: "BLOCK 2 | OAuth scopes are not defined on this operation when OAuth2 is used (security: [] is not sufficient)."
+    description: >
+      OAuth2 scopes must be explicitly defined when OAuth2 security is used.
+      An empty array 'security: []' is not sufficient.
+      Action: Fill in the applicable scopes.
+    severity: warn
+    given: "$.paths[*][*].security[*]"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          minProperties: 1
+
+  # [B2-08] Endpoint — Missing standard HTTP responses (400)
+  operation-must-have-400:
+    message: "BLOCK 2 | Response 400 (Bad Request) is missing on this operation."
+    description: >
+      Each endpoint must document at minimum: 400, 401, 500.
+      For endpoints with path parameters, also add 404.
+      Action: Add the missing responses with their description.
+    severity: error
+    given: "$.paths[*][get,post,put,patch,delete].responses"
+    then:
+      field: "400"
+      function: defined
+
+  # [B2-09] Endpoint — Missing standard HTTP responses (401)
+  operation-must-have-401:
+    message: "BLOCK 2 | Response 401 (Unauthorized) is missing on this operation."
+    severity: error
+    given: "$.paths[*][get,post,put,patch,delete].responses"
+    then:
+      field: "401"
+      function: defined
+
+  # [B2-10] Endpoint — Missing standard HTTP responses (500)
+  operation-must-have-500:
+    message: "BLOCK 2 | Response 500 (Internal Server Error) is missing on this operation."
+    severity: error
+    given: "$.paths[*][get,post,put,patch,delete].responses"
+    then:
+      field: "500"
+      function: defined
+
+  # ===========================================================================
+  # BLOCK 3 — BLOCKING DATA CONTRACT
+  # Consistency and quality of the data model.
+  # ===========================================================================
+
+  # [B3-01] Parameters — Parameter without type
+  parameter-schema-type-required:
+    message: "BLOCK 3 | Parameter '{{value}}' does not define a type in its schema."
+    description: >
+      Each parameter (path, query, header, cookie) must define a "schema"
+      with an explicit "type" (string, integer, boolean, array, object...).
+      Action: Add "schema.type" to the concerned parameter.
+    severity: error
+    given: "$.paths[*][*].parameters[*]"
+    then:
+      - field: schema
+        function: truthy
+        message: "BLOCK 3 | The parameter must have a 'schema' section."
+      - field: schema.type
+        function: truthy
+        message: "BLOCK 3 | The parameter must define a 'schema.type' (e.g.: string, integer...)."
+
+  # [B3-02] Parameters — Parameter without description
+  parameter-description-required:
+    message: "BLOCK 3 | Parameter '{{value}}' does not have a description."
+    description: >
+      The meaning of each parameter must be documented.
+      Action: Add an explicit description.
+    severity: error
+    given: "$.paths[*][*].parameters[*]"
+    then:
+      field: description
+      function: truthy
+
+  # [B3-03] Parameters — Path parameter not required
+  path-parameter-must-be-required:
+    message: "BLOCK 3 | Path parameter must have required: true."
+    description: >
+      All path parameters (in: path) are part of the URL and are therefore mandatory.
+      Setting required: false on a path parameter is forbidden.
+      Action: Set "required: true" on all path parameters.
+    severity: error
+    given: "$.paths[*][*].parameters[?(@.in == 'path')]"
+    then:
+      field: required
+      function: truthy
+
+  # [B3-04] Data Model — Type and example mismatch (string)
+  example-type-string:
+    message: "BLOCK 3 | The example for type 'string' must be a character string (e.g.: \"value\")."
+    description: >
+      The example must match the declared type.
+      Action: Correct the example so it matches the declared type.
+    severity: error
+    given: "$..[?(@.type === 'string' && @.example !== undefined)]"
+    then:
+      field: example
+      function: schema
+      functionOptions:
+        schema:
+          type: string
+
+  # [B3-05] Data Model — Type and example mismatch (number / integer)
+  example-type-number:
+    message: "BLOCK 3 | The example for type 'number' or 'integer' must be a number without quotes (e.g.: 123)."
+    description: >
+      The example must match the declared type.
+      Action: Correct the example to use a numeric value.
+    severity: error
+    given: "$..[?((@.type === 'number' || @.type === 'integer') && @.example !== undefined)]"
+    then:
+      field: example
+      function: schema
+      functionOptions:
+        schema:
+          type: [number, integer]
+
+  # [B3-06] Data Model — Type and example mismatch (boolean)
+  example-type-boolean:
+    message: "BLOCK 3 | The example for type 'boolean' must be true or false without quotes."
+    description: >
+      The example must match the declared type.
+      Action: Correct the example to use a boolean value.
+    severity: error
+    given: "$..[?(@.type === 'boolean' && @.example !== undefined)]"
+    then:
+      field: example
+      function: schema
+      functionOptions:
+        schema:
+          type: boolean
+
+  # [B3-07] Data Model — Type and example mismatch (object)
+  example-type-object:
+    message: "BLOCK 3 | The example for type 'object' must be a valid JSON object { }."
+    description: >
+      The example must match the declared type.
+      Action: Correct the example to use a valid JSON object.
+    severity: error
+    given: "$..[?(@.type === 'object' && @.example !== undefined)]"
+    then:
+      field: example
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+
+  # [B3-08] Data Model — Type and example mismatch (array)
+  example-type-array:
+    message: "BLOCK 3 | The example for type 'array' must be a list [ ]."
+    description: >
+      The example must match the declared type.
+      Action: Correct the example to use a valid array.
+    severity: error
+    given: "$..[?(@.type === 'array' && @.example !== undefined)]"
+    then:
+      field: example
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+
+  # [B3-09] Data Model — Type and format mismatch (string formats)
+  format-type-string-mismatch:
+    message: "BLOCK 3 | Format '{{value}}' requires type 'string' (currently '{{parent.type}}')."
+    description: >
+      Formats such as date, date-time, email, uuid, etc. are only valid for type string.
+      Action: Correct the format or the type so they are consistent.
+    severity: warn
+    given: "$..[?(@.format === 'date' || @.format === 'date-time' || @.format === 'password' || @.format === 'byte' || @.format === 'binary' || @.format === 'email' || @.format === 'uuid' || @.format === 'uri' || @.format === 'uri-reference' || @.format === 'hostname' || @.format === 'ipv4' || @.format === 'ipv6')]"
+    then:
+      field: type
+      function: enumeration
+      functionOptions:
+        values: ["string"]
+
+  # [B3-10] Data Model — Type and format mismatch (integer formats)
+  format-type-integer-mismatch:
+    message: "BLOCK 3 | Format '{{value}}' requires type 'integer' (currently '{{parent.type}}')."
+    description: >
+      The formats int32 and int64 are only valid for type integer.
+      Action: Correct the format or the type so they are consistent.
+    severity: warn
+    given: "$..[?(@.format === 'int32' || @.format === 'int64')]"
+    then:
+      field: type
+      function: enumeration
+      functionOptions:
+        values: ["integer"]
+
+  # [B3-11] Data Model — Type and format mismatch (number formats)
+  format-type-number-mismatch:
+    message: "BLOCK 3 | Format '{{value}}' requires type 'number' or 'integer' (currently '{{parent.type}}')."
+    description: >
+      The formats float and double are only valid for numeric types.
+      Action: Correct the format or the type so they are consistent.
+    severity: warn
+    given: "$..[?(@.format === 'float' || @.format === 'double')]"
+    then:
+      field: type
+      function: enumeration
+      functionOptions:
+        values: ["number", "integer"]
+
+  # [B3-12] Data Model — Array without items
+  array-must-define-items:
+    message: "BLOCK 3 | An array (type: array) does not define the schema of its elements (items missing)."
+    description: >
+      Arrays must define the schema of their items.
+      An array without items is untyped and cannot be validated.
+      Action: Add the items schema to the array.
+    severity: error
+    given: "$..[?(@.type == 'array')]"
+    then:
+      field: items
+      function: truthy
+
+  # [B3-13] Data Model — Enum inconsistent with type (string)
+  enum-type-string-mismatch:
+    message: "BLOCK 3 | Enum values must be character strings (type: string)."
+    description: >
+      All values in 'enum' must match the declared type 'string'.
+      Action: Correct the enum values or change the type.
+    severity: warn
+    given: "$..[?(@.type === 'string' && @.enum)]"
+    then:
+      field: enum
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          items:
+            type: string
+
+  # [B3-14] Data Model — Enum inconsistent with type (number / integer)
+  enum-type-number-mismatch:
+    message: "BLOCK 3 | Enum values must be numbers without quotes (type: number/integer)."
+    description: >
+      All values in 'enum' must match the declared numeric type.
+      Action: Correct the enum values or change the type.
+    severity: warn
+    given: "$..[?((@.type === 'number' || @.type === 'integer') && @.enum)]"
+    then:
+      field: enum
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          items:
+            type: number
+
+  # [B3-15] Data Model — Enum inconsistent with type (boolean)
+  enum-type-boolean-mismatch:
+    message: "BLOCK 3 | Enum values must be booleans (true/false)."
+    description: >
+      All values in 'enum' must match the declared type 'boolean'.
+      Action: Correct the enum values or change the type.
+    severity: warn
+    given: "$..[?(@.type === 'boolean' && @.enum)]"
+    then:
+      field: enum
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          items:
+            type: boolean
+
+  # [B3-16] Data Model — Non-standard date format
+  date-format-must-be-standard:
+    message: "BLOCK 3 | Format '{{value}}' is not a standard OpenAPI format — use 'date' or 'date-time'."
+    description: >
+      Custom date formats (e.g.: yyyy-MM-dd) are not accepted.
+      Use format: date or format: date-time.
+      Action: Replace the custom format with the OpenAPI standard.
+    severity: warn
+    given: "$..[?(@.format)]"
+    then:
+      function: enumeration
+      functionOptions:
+        values:
+          - date
+          - date-time
+          - password
+          - byte
+          - binary
+          - int32
+          - int64
+          - float
+          - double
+          - email
+          - uri
+          - uri-reference
+          - uuid
+          - hostname
+          - ipv4
+          - ipv6
+
+  # [B3-17] Data Model — Broken schema reference
+  ref-must-be-valid:
+    message: "BLOCK 3 | The reference '{{value}}' is broken or points to a non-existent schema."
+    description: >
+      All $ref references must point to an existing component.
+      Action: Fix the reference or create the missing schema.
+    severity: error
+    given: "$..$ref"
+    then:
+      function: truthy
+
+  # [B3-18] Data Model — Schema should use $ref instead of inline definition
+  use-schemas-refs-in-endpoints:
+    message: "Do not define the schema inline here. Define it in 'components/schemas' and use a $ref."
+    description: >
+      Response and request schemas should preferably be reusable references ($ref)
+      pointing to components.
+      Action: Move the schema to components/schemas and reference it via $ref when relevant.
+    severity: hint
+    given:
+      - "$.paths[*][*].responses[*].content[*].schema"
+      - "$.paths[*][*].requestBody.content[*].schema"
+    then:
+      field: "$ref"
+      function: truthy
+
+  # [B3-19] Error Handling — Error schema missing
+  error-response-content-required:
+    message: "BLOCK 3 | Error response {{property}} does not define a payload schema."
+    description: >
+      Error responses (4xx, 5xx) must define a structured payload schema.
+      Use a standard reusable error object.
+      Action: Add a standardized error schema to the response.
+    severity: error
+    given: "$.paths[*][*].responses[?(@property >= '400')]"
+    then:
+      field: content
+      function: truthy
+
+  # [B3-20] Error Handling — Error response undocumented
+  error-response-description-required:
+    message: "BLOCK 3 | Error response {{property}} does not have a description."
+    description: >
+      Each error response must include an explicit description of the error case.
+      Action: Add a description explaining in what context the error occurs.
+    severity: error
+    given: "$.paths[*][*].responses[?(@property >= '400')]"
+    then:
+      field: description
+      function: truthy
+
+  # [B3-21] Error Handling — Additional standardization guidance
+  error-response-schema-required:
+    message: "BLOCK 3 | Error response '{{property}}' should use a standard reusable error model."
+    description: >
+      Error responses (4xx/5xx) should define a reusable standardized data structure.
+      Action: Prefer a standard shared error schema referenced via $ref.
+    severity: hint
+    given: "$.paths[*][*].responses[?(@property >= 400)].content[*].schema"
+    then:
+      field: "$ref"
+      function: truthy
+
+  # [B3-22] Data Model — Complex schema should include an example
+  complex-schema-example-requiredObject:
+    message: "The object '{{property}}' should include a representative 'example' field."
+    severity: hint
+    given: "$..[?(@.type === 'object' && @.properties)]"
+    then:
+      field: example
+      function: truthy
+
+  complex-schema-example-requiredArray:
+    message: "The array '{{property}}' should include a representative 'example' field."
+    severity: hint
+    given: "$..[?(@.type === 'array' && @.items)]"
+    then:
+      field: example
+      function: truthy
+
+  # ===========================================================================
+  # RECOMMENDED: Documentation & Governance
+  # Does not block publication but strongly improves quality.
+  # ===========================================================================
+
+  # [B4-01] Documentation — Field description missing
+  schema-property-description-required:
+    message: "RECOMMENDED | Property '{{path}}' does not have a description."
+    description: >
+      Important fields in the data model should be documented.
+      Action: Add a description on key schema properties.
+    severity: hint
+    given: "$.components.schemas[*].properties[*]"
+    then:
+      field: description
+      function: truthy
+
+  # [B4-02] Governance — Endpoints should use tags
+  operation-tags-required:
+    message: "Tags are missing on this operation."
+    description: >
+      Endpoints should be grouped by functional domain using tags.
+      This improves navigation in API portals and generated documentation.
+      Action: Add at least one relevant tag to the operation.
+    severity: hint
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: tags
+      function: truthy

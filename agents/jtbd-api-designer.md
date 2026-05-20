@@ -160,7 +160,29 @@ All `4xx` and `5xx` responses reference the shared `Error` schema via `$ref`.
 
 Generate a complete, valid **OpenAPI 3.0.3** file. The spec must include:
 
-### `info` block
+### `info` block (including the four mandatory `x-` extensions)
+
+⚠️ **Critical**: the HIP ruleset requires the four `x-` extensions **nested under `info`**, NOT at the document root. OpenAPI 3.0.x technically allows extensions at either level, but HIP's Spectral rules (`api-x-hopex-required`, `api-x-api-type-required`, `api-x-contacts-required`, `api-x-domain-required`) all use `given: "$.info"`. Placing them at root is a Block 1 blocking error.
+
+```yaml
+openapi: 3.0.3
+info:
+  title: <validated title>
+  description: <≥ 50 chars, > length(title)>
+  version: 1.0.0
+  contact:
+    name: <API Lead group label>
+    email: api-lead@cma-cgm.com
+  x-hopex:
+    componentCode: <CP\d+>                       # collected in Phase 1
+  x-api-type: <system|business|experience>       # mapped from hipApiType collected in Phase 1
+  x-contacts:
+    api-lead: <group name>                       # collected in Phase 1
+    api-factory: <group name>                    # collected in Phase 1
+  x-domain: <architectural domain>               # collected in Phase 1
+```
+
+Field-level rules to apply:
 
 - `openapi: 3.0.3` (not 3.1 — HIP standard is 3.0.x).
 - `info.title` — regex check `^(?!.*\b(API|Service|REST|Microservice|Endpoint|WS)\b).+$`, min 5 chars. If the user-provided title violates the rule, rephrase it. Example: *"Customer Letter of Agreement"* instead of *"Letter of Agreement API"*.
@@ -168,19 +190,7 @@ Generate a complete, valid **OpenAPI 3.0.3** file. The spec must include:
 - `info.version` — SemVer, default `1.0.0`, regex `^\d+\.\d+\.\d+$`.
 - `info.contact` — populated with the API Lead group as a placeholder email (e.g. `api-lead@cma-cgm.com`).
 
-### Four mandatory `x-` extensions at the root
-
-```yaml
-x-hopex:
-  componentCode: <CP\d+>            # collected in Phase 1
-x-api-type: <system|business|experience>   # mapped from hipApiType collected in Phase 1 (process / integration map to business when present in the ruleset)
-x-contacts:
-  api-lead: <group name>            # collected in Phase 1
-  api-factory: <group name>         # collected in Phase 1
-x-domain: <architectural domain>    # collected in Phase 1
-```
-
-> Mapping note: the HIP naming doc lists `experience / process / system / integration`. The Spectral ruleset accepts `system / business / experience`. Map `process` and `integration` to `business` for `x-api-type`. Flag the choice in the review.
+> Mapping note for `x-api-type`: the HIP naming doc lists `experience / process / system / integration`. The Spectral ruleset accepts `system / business / experience`. Map `process` and `integration` to `business` for `x-api-type`. Flag the choice in the review.
 
 ### `servers[].url`
 
@@ -214,12 +224,21 @@ Factor reusable elements into `components` to keep `paths` lean and prevent drif
   - `bearer`: `type: http`, `scheme: bearer`, `bearerFormat: JWT`
 - `schemas.Error` — reusable error schema with at least `type`, `title`, `status`, `detail`, `instance` properties (RFC 7807 Problem Details style).
 - `schemas.<Resource>` — one entry per business resource, with `properties`, `required`, `example`.
+- `schemas.<Resource>List` — one entry per business resource collection (wrapper around `type: array, items: $ref: '#/components/schemas/<Resource>Summary'`). Avoid declaring `type: array, items: $ref:` inline in operation responses — factor each collection shape as its own schema in `components.schemas` and `$ref` it. Spectral flags inline array wrappers under `use-schemas-refs-in-endpoints`.
 - `parameters` — **factor every parameter that appears in more than one operation**: the `Range` request header for pagination, common path parameters (e.g. `{loaId}`), recurring query filters. Each is referenced via `$ref: '#/components/parameters/<Name>'` from `paths`. Reduces duplication, single source of truth for descriptions and examples.
 - `responses` — **factor the standard error responses** (`BadRequest`, `Unauthorized`, `Forbidden`, `NotFound`, `Conflict`, `RangeNotSatisfiable`, `InternalServerError`) and reference them via `$ref: '#/components/responses/<Name>'` from each operation. Each response wraps the shared `Error` schema. Without this, every operation declares the same 5–7 error responses inline — verbose and drift-prone.
 
-### Examples
+### Property-level rules inside every schema
 
-Provide concrete examples in every request body and response body, drawn from the acceptance criteria collected in Phase 2.
+These are the rules Spectral's Block 3 (data contract) enforces. Apply them systematically — including on small or nested schemas (Spectral hints `schema-property-description-required` will fire on every missed property).
+
+- **`description` on every property** — every property of every schema, including small/nested schemas (sub-resources like `Archival`, `AuditEntry`, `SubmissionRequest`, etc.) must carry a `description`. Do not skip "obvious" fields like `id` or `name`.
+- **`format` + valid `example`** — when a property declares `format: uri`, the `example` must be a **fully qualified URI** (e.g. `https://api.cma-cgm.com/letters-of-agreement/LOA-2026-000142`), not a relative path. Spectral validates the example against the declared format and fires `oas3-valid-schema-example` otherwise. If you genuinely want a relative reference, declare `format: uri-reference` instead.
+- **Schema-level `example` must include every `required` property** — when an object schema declares `required: [a, b, c]` and provides a top-level `example: {...}`, that example must contain `a`, `b`, `c` as keys. Otherwise Spectral fires `complex-schema-example-requiredArray`. Easiest pattern: always copy the full `example` from one of the request/response bodies that use the schema.
+
+### Operation-level examples
+
+Provide concrete examples in every request body and response body, drawn from the acceptance criteria collected in Phase 2. Reuse the schema-level `example` rather than authoring divergent inline examples.
 
 ---
 
@@ -231,19 +250,21 @@ Before delivering the spec, run an internal structural self-check. Verify presen
 - [ ] `info.title`, `info.description`, `info.version`, `info.contact`
 - [ ] `info.title` passes the forbidden-words regex
 - [ ] `info.description` is min 50 chars and longer than `info.title`
-- [ ] Four `x-` extensions at the root (`x-hopex`, `x-api-type`, `x-contacts`, `x-domain`)
+- [ ] Four `x-` extensions **nested under `info`** (`info.x-hopex`, `info.x-api-type`, `info.x-contacts`, `info.x-domain`) — NOT at the document root. This is the most frequent Block 1 failure mode; double-check the indentation.
 - [ ] `servers[0].url` matches the HIP basePath convention
 - [ ] Every operation has `operationId`, `summary`, `description`, `tags`, `security`
 - [ ] No CRUD verbs in any path
-- [ ] All paths use plural nouns
+- [ ] All collection paths use the **plural of the entity** (not collective singulars like `trail`, `history`, `log`)
 - [ ] Every operation declares responses 400, 401, 403, 500 (+ 404 if path param, + 409 if stateful precondition, + 416 if paginated GET collection)
 - [ ] All `4xx`/`5xx` responses reference reusable response definitions in `components.responses` (which themselves wrap `#/components/schemas/Error`)
-- [ ] `components.schemas.Error` defined (RFC 7807 Problem Details)
+- [ ] `components.schemas.Error` defined (RFC 7807 Problem Details). The `instance` property `example` is a **fully qualified URI** (`https://...`), not a relative path — or its `format` is `uri-reference` if relative.
 - [ ] `components.securitySchemes` populated and referenced by operations
 - [ ] `components.parameters` factors every parameter used in 2+ operations (pagination `Range`, common path params, recurring query filters)
 - [ ] `components.responses` factors the standard error responses (BadRequest, Unauthorized, Forbidden, NotFound, Conflict, RangeNotSatisfiable, InternalServerError)
-- [ ] No inline schemas outside `components/schemas/`
-- [ ] All collection paths use the **plural of the entity** (not collective singulars like `trail`, `history`, `log`)
+- [ ] No inline schemas in `paths` outside `components/schemas/`, **including no inline `type: array, items: $ref:` wrappers in operation responses** — factor each collection shape as a `<Resource>List` schema
+- [ ] **Every property of every schema** (including nested sub-schemas like `Archival`, `AuditEntry`, `SubmissionRequest`) carries a `description`
+- [ ] **Every schema-level `example`** includes all properties listed in that schema's `required` array
+- [ ] **`format: uri` examples are fully qualified URIs** (with scheme), or use `format: uri-reference` if relative
 - [ ] Each endpoint maps to at least one acceptance criterion from Phase 2
 
 Fix anything missing in place, then output a short review report:
@@ -252,6 +273,16 @@ Fix anything missing in place, then output a short review report:
 - Flag any acceptance criterion not covered by any endpoint (functional blind spot)
 - Flag any endpoint not tied to any acceptance criterion (over-engineering)
 - Flag any HIP metadata still set to `unknown` (must be filled before Spectral validation)
+
+### Optional but recommended — local Spectral run
+
+If the user is running the agent inside the CMA-CGM `dev-container`, the HIP ruleset is already available at `spectral/hip-ruleset.yml` and the `stoplight.spectral` VS Code extension is installed. Encourage the user to save the produced spec to a file and run:
+
+```bash
+spectral lint <spec-file>.yaml --ruleset spectral/hip-ruleset.yml
+```
+
+A clean output (0 errors, 0 critical hints) confirms the spec passes the HIP quality gate before pushing to the cartography repo.
 
 ---
 
