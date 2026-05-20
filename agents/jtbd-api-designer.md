@@ -234,7 +234,21 @@ These are the rules Spectral's Block 3 (data contract) enforces. Apply them syst
 
 - **`description` on every property** — every property of every schema, including small/nested schemas (sub-resources like `Archival`, `AuditEntry`, `SubmissionRequest`, etc.) must carry a `description`. Do not skip "obvious" fields like `id` or `name`.
 - **`format` + valid `example`** — when a property declares `format: uri`, the `example` must be a **fully qualified URI** (e.g. `https://api.cma-cgm.com/letters-of-agreement/LOA-2026-000142`), not a relative path. Spectral validates the example against the declared format and fires `oas3-valid-schema-example` otherwise. If you genuinely want a relative reference, declare `format: uri-reference` instead.
-- **Schema-level `example` must include every `required` property** — when an object schema declares `required: [a, b, c]` and provides a top-level `example: {...}`, that example must contain `a`, `b`, `c` as keys. Otherwise Spectral fires `complex-schema-example-requiredArray`. Easiest pattern: always copy the full `example` from one of the request/response bodies that use the schema.
+- **Schema-level `example` must include every `required` property** — when an object schema declares `required: [a, b, c]` and provides a top-level `example: {...}`, that example must contain `a`, `b`, `c` as keys. Easiest pattern: always copy the full `example` from one of the request/response bodies that use the schema.
+- **Array properties must have their own `example`** — when a schema property is `type: array, items: $ref: ...`, declare an `example: [...]` directly on that property (at minimum one representative element matching the referenced schema). This applies whether or not the parent schema already provides a top-level `example`. Otherwise Spectral fires `complex-schema-example-requiredArray`. Example:
+
+  ```yaml
+  signatures:
+    type: array
+    description: Signatures recorded on the resource.
+    items:
+      $ref: '#/components/schemas/Signature'
+    example:                                           # ← required by Spectral
+      - signatureId: SIG-2026-000142-INT
+        signatoryRole: INTERNAL
+        signatoryName: Jane Smith
+        signedAt: '2026-02-28T16:20:00Z'
+  ```
 
 ### Operation-level examples
 
@@ -264,6 +278,7 @@ Before delivering the spec, run an internal structural self-check. Verify presen
 - [ ] No inline schemas in `paths` outside `components/schemas/`, **including no inline `type: array, items: $ref:` wrappers in operation responses** — factor each collection shape as a `<Resource>List` schema
 - [ ] **Every property of every schema** (including nested sub-schemas like `Archival`, `AuditEntry`, `SubmissionRequest`) carries a `description`
 - [ ] **Every schema-level `example`** includes all properties listed in that schema's `required` array
+- [ ] **Every array property** (`type: array, items: $ref:`) declares its own `example: [...]` with at least one representative element
 - [ ] **`format: uri` examples are fully qualified URIs** (with scheme), or use `format: uri-reference` if relative
 - [ ] Each endpoint maps to at least one acceptance criterion from Phase 2
 
