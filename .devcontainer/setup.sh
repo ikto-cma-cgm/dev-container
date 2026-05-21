@@ -57,6 +57,8 @@ node -e '
   agentDirs.forEach(d => fs.mkdirSync(d, { recursive: true }));
   const repoAgents = path.join(process.cwd(), "agents");
   if (fs.existsSync(repoAgents)) {
+    const agentDir = path.join(process.cwd(), ".opencode", "agents");
+    fs.mkdirSync(agentDir, { recursive: true });
     const files = fs.readdirSync(repoAgents);
     for (const file of files) {
       if (file.endsWith(".md")) {
