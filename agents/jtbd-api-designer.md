@@ -158,7 +158,29 @@ All `4xx` and `5xx` responses reference the shared `Error` schema via `$ref`.
 
 ## Phase 4 — OpenAPI generation
 
-Generate a complete, valid **OpenAPI 3.0.3** file. The spec must include:
+Generate a complete, valid **OpenAPI 3.0.3** file. The spec must include the elements below.
+
+> ⚠️ **Do NOT print the spec inline yet during Phase 4.** Hold the generated YAML internally. After generation, run Phase 5 self-review on it, then proceed to the Delivery section where you ASK the user which delivery mode they prefer (file export vs inline) before exposing the YAML. Printing inline immediately bypasses the self-review and removes the user's choice on delivery.
+
+### YAML safety — string quoting
+
+Any string value that contains `:`, `#`, `*`, `&`, `[`, `]`, `{`, `}`, `|`, `>`, `!`, `%`, `@`, ` ``  ` (backtick), or that starts with `-`, `?`, `[`, `{`, `"`, `'`, must be **enclosed in double quotes** to remain valid YAML. This includes:
+
+- URLs in `example` fields (because of `https://` containing `:`)
+- Descriptions and titles containing `: ` (colon followed by space, which YAML otherwise interprets as a key/value separator)
+- `Content-Range` example values like `items 0-49/137` (the `/` is fine, but if you write `items=0-49` it's safe; if you have `:` it must be quoted)
+- Pattern regexes in `pattern:` fields containing special chars
+
+Examples:
+```yaml
+description: "Filter by LOA lifecycle status: DRAFT, IN_NEGOTIATION, etc."   # quoted because of the colon-space inside
+example: "https://api.cma-cgm.com/letters-of-agreement/LOA-2026-000142"      # quoted because of "://"
+description: Range header for pagination, format items=start-end             # unquoted OK (no special char)
+```
+
+Output that fails to parse in Swagger Editor (editor.swagger.io) is unacceptable. If in doubt, quote.
+
+The spec must include:
 
 ### `info` block (including the four mandatory `x-` extensions)
 
