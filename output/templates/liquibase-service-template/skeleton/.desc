@@ -1,7 +1,0 @@
-{
-    "version": "1.0.0",
-    "name": "${{ values.name }}",
-    "author": "CMA CGM Platform Team",
-    "deployment_plan": [],
-    "xl_deploy_manifest": []
-}

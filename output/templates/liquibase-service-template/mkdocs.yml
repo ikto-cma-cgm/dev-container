@@ -1,4 +1,0 @@
-site_name: Liquibase Database Migrations Template
-docs_dir: docs
-plugins:
-  - techdocs-core
