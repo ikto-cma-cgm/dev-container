@@ -1,5 +1,5 @@
-site_name: springboot-swagger-service-template
-site_description: Template pour crÃ©er un microservice Spring Boot Ã partir d'une spÃ©cification OpenAPI/Swagger
+site_name: Spring Boot from OpenAPI Template
+site_description: Scaffolds a Spring Boot 3 microservice with API code generated from an OpenAPI specification
 
 nav:
   - Introduction: index.md

@@ -47,25 +47,24 @@ node -e '
   fs.writeFileSync(path.join(confDir, "opencode.json"), JSON.stringify(conf, null, 2) + "\n");
   console.log("✅ opencode configuré — modèle : local/" + modelId + " | base : " + env.AI_API_BASE);
 
-  // Symlinks agents/ versionnés → ~/.config/opencode/agents/ (path canonique, pluriel,
-  // attendu par les versions actuelles d'opencode) + ~/.config/opencode/agent/ (singulier,
-  // backwards compatibility pour les anciennes versions). Voir https://opencode.ai/docs/agents/
-  const agentDirs = [
-    path.join(confDir, "agents"),  // canonique (opencode actuel)
-    path.join(confDir, "agent"),   // backwards compat (anciennes versions)
-  ];
-  agentDirs.forEach(d => fs.mkdirSync(d, { recursive: true }));
+  // Symlinks agents/ versionnés → .opencode/agents/ (project-local, lu par opencode au lancement)
+  // + ~/.config/opencode/agents/ (canonique, opencode actuel) + ~/.config/opencode/agent/ (backwards compat).
   const repoAgents = path.join(process.cwd(), "agents");
   if (fs.existsSync(repoAgents)) {
     const agentDir = path.join(process.cwd(), ".opencode", "agents");
-    fs.mkdirSync(agentDir, { recursive: true });
+    const agentDirs = [
+      agentDir,                          // project-local (prioritaire en contexte devcontainer)
+      path.join(confDir, "agents"),      // canonique (opencode actuel)
+      path.join(confDir, "agent"),       // backwards compat (anciennes versions)
+    ];
+    agentDirs.forEach(d => fs.mkdirSync(d, { recursive: true }));
     const files = fs.readdirSync(repoAgents);
     for (const file of files) {
       if (file.endsWith(".md")) {
         const src = path.join(repoAgents, file);
         agentDirs.forEach(d => {
           const dst = path.join(d, file);
-          if (fs.existsSync(dst)) fs.unlinkSync(dst);
+          try { fs.unlinkSync(dst); } catch (e) { if (e.code !== "ENOENT") throw e; }
           fs.symlinkSync(src, dst, "file");
         });
       }

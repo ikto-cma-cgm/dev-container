@@ -3,12 +3,13 @@ kind: Template
 metadata:
   name: springboot-swagger-service-template
   title: Spring Boot Microservice from OpenAPI Spec
-  description: Scaffolds a Spring Boot 3 microservice with API code generated from an OpenAPI/Swagger specification, Maven, Docker, PostgreSQL and Backstage integration.
+  description: Scaffolds a Spring Boot 3 microservice with an OpenAPI/Swagger spec. Maven, Docker, PostgreSQL and Backstage integration. API code generation is delegated to the Maven build (openapi-generator-maven-plugin).
   annotations:
     simpleicons.org/icon-slug: springboot
     backstage.io/techdocs-ref: dir:.
   tags:
     - application
+    - java
 spec:
   type: service
   owner: group:default/it-development-software-engineering-developer-platform
@@ -20,11 +21,11 @@ spec:
           title: Service name
           type: string
           pattern: '^[a-z][a-z0-9-]*[a-z0-9]$'
-          ui:help: 'Kebab-case, unique dans le Catalog. Ex: quote-pricing-api'
+          ui:help: 'Unique service identifier in the Catalog. Kebab-case, e.g. quote-pricing-api'
         description:
           title: Description
           type: string
-          ui:help: 'Une phrase décrivant le service. Apparaîtra dans le Catalog.'
+          ui:help: 'A short sentence describing the service. Shown in the Catalog.'
         owner:
           title: Owner
           type: string
@@ -32,7 +33,7 @@ spec:
           ui:options:
             catalogFilter:
               - kind: Group
-          ui:help: 'Équipe responsable. Sera paginée en cas d''incident.'
+          ui:help: 'The team responsible for this service. They will be paged on incidents.'
 
     - title: Catalog placement
       required: [system, domain]
@@ -40,33 +41,57 @@ spec:
         system:
           title: System
           type: string
-          ui:help: 'System Backstage auquel ce service appartient. Ex: pricing'
+          ui:help: 'Backstage system this service belongs to. E.g. pricing'
         domain:
           title: Domain
           type: string
-          ui:help: 'Domain métier. Ex: finance, shipping, platform'
+          ui:help: 'Business domain. E.g. finance, shipping, platform'
 
-    - title: OpenAPI specification
+    - title: API specification
       required: [swaggerUrl]
       properties:
         swaggerUrl:
           title: OpenAPI spec URL
           type: string
-          pattern: '^https?://.*\.ya?ml$|^https?://.*\.json$'
-          ui:help: 'URL de la spécification OpenAPI/Swagger (YAML ou JSON). La spec doit être HIP-compliant (rédigée idéalement via l''agent opencode jtbd-api-designer et validée Spectral).'
+          format: uri
+          ui:help: 'URL directe vers le fichier YAML/JSON de votre spec OpenAPI 3.x. GitHub : utilisez l''URL Raw (raw.githubusercontent.com), pas l''URL API ni le lien "blob".'
 
-    - title: HIP metadata
+    - title: Java configuration
+      required: [packageName]
+      properties:
+        packageName:
+          title: Java package name
+          type: string
+          default: 'com.example.service'
+          ui:help: 'Root Java package for generated and hand-written classes. E.g. com.cma.pricing.api'
+
+    - title: Repository
+      required: [githubOwner]
+      properties:
+        githubOwner:
+          title: GitHub owner
+          type: string
+          default: 'cma-cgm'
+          ui:help: 'GitHub organization that will own the repository. Default: cma-cgm'
+
+    - title: Advanced (HIP metadata)
+      ui:autofocus: hopexComponentCode
       properties:
         hopexComponentCode:
           title: HOPEX component code
           type: string
-          pattern: '^CP\d+$'
-          ui:help: 'Code du composant HOPEX (Enterprise Architecture). Ex: CP00141. Optionnel mais recommandé. Exposé via l''annotation cma-cgm.com/hopex-code.'
+          pattern: '^$|^CP\d+$'
+          ui:help: 'HOPEX Enterprise Architecture component code. E.g. CP00141. Optional — leave blank to omit.'
         apiType:
           title: API type
           type: string
           enum: [system, business, experience]
-          ui:help: 'Classification selon le pattern HIP API-led 3-tiers. system = asset core, business = orchestration, experience = consumer-specific.'
+          default: system
+          ui:enumNames:
+            - System (core asset API)
+            - Business (orchestration API)
+            - Experience (consumer-facing API)
+          ui:help: 'HIP API-led connectivity tier. Default: system.'
         apiLead:
           title: API Lead
           type: string
@@ -74,7 +99,7 @@ spec:
           ui:options:
             catalogFilter:
               - kind: Group
-          ui:help: 'Groupe propriétaire métier de l''API. Distinct de owner (équipe de dev) et de apiFactory (équipe de build).'
+          ui:help: 'Business owner group for this API. Default: same as service owner.'
         apiFactory:
           title: API Factory
           type: string
@@ -82,98 +107,11 @@ spec:
           ui:options:
             catalogFilter:
               - kind: Group
-          ui:help: 'Groupe qui construit l''API (typiquement l''équipe Spring Boot de dev).'
+          ui:help: 'Group that builds this API. Default: same as service owner.'
         apiDomainArchitectural:
-          title: Architectural domain (x-domain)
+          title: Architectural domain
           type: string
-          ui:help: 'Domaine architectural HIP pour l''extension x-domain de la spec. Souvent identique au champ Domain ci-dessus, mais peut différer.'
-
-    - title: Build configuration
-      required: [javaVersion, groupId]
-      properties:
-        javaVersion:
-          title: Java version
-          type: string
-          enum: ['17', '21']
-          default: '21'
-          ui:help: 'Version Java du serveur de runtime.'
-        javaTool:
-          title: Java Tool
-          type: string
-          default: 'JAVA_21'
-          ui:help: "Code outil Java pour le pipeline. JAVA_21 pour Java 21, JAVA_17 pour Java 17."
-        groupId:
-          title: Maven Group ID
-          type: string
-          default: 'com.cma'
-          ui:help: 'Identifiant Maven du groupe. Ex: com.cma'
-        packageName:
-          title: Java package name
-          type: string
-          default: 'com.example.service'
-          ui:help: 'Package racine pour les classes Java. Ex: com.cma.pricing'
-        springBootVersion:
-          title: Spring Boot version
-          type: string
-          default: '3.4.2'
-          ui:help: 'Version de Spring Boot. Consultez les versions supportées sur spring.io'
-        springCloudVersion:
-          title: Spring Cloud version
-          type: string
-          default: '2024.0.0'
-          ui:help: 'Version de Spring Cloud.'
-
-    - title: Repository platform
-      required: [publishPlatform]
-      properties:
-        publishPlatform:
-          title: Publish to
-          type: string
-          enum: ['github', 'gitlab']
-          default: 'github'
-          enumNames:
-            - "GitHub"
-            - "GitLab"
-          ui:help: 'Plateforme de publication du repository (mutuellement exclusif).'
-
-    - title: GitHub Information
-      required: [githubOwner]
-      properties:
-        githubOwner:
-          title: GitHub Owner
-          type: string
-          default: 'cma-cgm'
-          ui:help: 'Organisation ou utilisateur GitHub propriétaire du repository.'
-      when: ${{ parameters.publishPlatform === 'github' }}
-
-    - title: GitLab Information
-      required: [gitlabNamespace, gitlabHost]
-      properties:
-        gitlabHost:
-          title: GitLab Host
-          type: string
-          default: 'gitlab.com'
-          ui:help: 'Hôte GitLab. Ex: gitlab.com ou gitlab.cma-cgm.com'
-        gitlabNamespace:
-          title: GitLab Namespace
-          type: string
-          ui:help: 'Espace de noms GitLab pour le projet. Ex: pricing-services'
-      when: ${{ parameters.publishPlatform === 'gitlab' }}
-
-    - title: Docker configuration
-      properties:
-        dockerImagePrefix:
-          title: Docker Image Prefix
-          type: string
-          default: 'eu.gcr.io/cma-cgm'
-          ui:help: 'Préfixe du registry Docker.'
-
-    - title: Architecture
-      properties:
-        architectureArea:
-          title: Architecture Area
-          type: string
-          ui:help: 'Domaine d''architecture. Ex: finance, shipping, platform'
+          ui:help: 'HIP architectural domain (x-domain extension). Default: same as Domain.'
 
   steps:
     - id: fetch-skeleton
@@ -187,67 +125,45 @@ spec:
           owner: ${{ parameters.owner }}
           system: ${{ parameters.system }}
           domain: ${{ parameters.domain }}
-          javaVersion: ${{ parameters.javaVersion }}
-          javaTool: ${{ parameters.javaTool }}
-          groupId: ${{ parameters.groupId }}
+          githubOwner: ${{ parameters.githubOwner }}
           packageName: ${{ parameters.packageName }}
-          springBootVersion: ${{ parameters.springBootVersion }}
-          springCloudVersion: ${{ parameters.springCloudVersion }}
-          hopexComponentCode: ${{ parameters.hopexComponentCode }}
+          packagePath: ${{ parameters.packageName | replace('.', '/') }}
           apiType: ${{ parameters.apiType }}
           apiLead: ${{ parameters.apiLead }}
           apiFactory: ${{ parameters.apiFactory }}
           apiDomainArchitectural: ${{ parameters.apiDomainArchitectural }}
+          hopexComponentCode: ${{ parameters.hopexComponentCode }}
+          swaggerUrl: ${{ parameters.swaggerUrl }}
 
-    - id: fetch-openapi-spec
-      name: Fetch OpenAPI spec
-      action: fetch:plain-text
-      input:
-        url: ${{ parameters.swaggerUrl }}
-        targetUrl: src/main/resources/api/openapi.yaml
-
-    - id: publish-github
-      name: Publish on GitHub
-      if: ${{ parameters.publishPlatform === 'github' }}
+    - id: publish-repo
+      name: Publish repository
       action: publish:github
       input:
-        allowedHosts: ['github.com']
         repoUrl: github.com?owner=${{ parameters.githubOwner }}&repo=${{ parameters.name }}
-        description: ${{ parameters.description }}
-
-    - id: publish-gitlab
-      name: Publish on GitLab
-      if: ${{ parameters.publishPlatform === 'gitlab' }}
-      action: publish:gitlab
-      input:
-        allowedHosts: ["${{ parameters.gitlabHost }}"]
-        repoUrl: ${{ parameters.gitlabHost }}?owner=${{ parameters.gitlabNamespace }}&repo=${{ parameters.name }}
-        defaultBranch: main
         description: ${{ parameters.description }}
 
     - id: register-catalog
       name: Register in catalog
       action: catalog:register
       input:
-        repoContentsUrl: "${{ parameters.publishPlatform === 'github' ? steps['publish-github'].output.repoContentsUrl : steps['publish-gitlab'].output.repoContentsUrl }}"
+        repoContentsUrl: ${{ steps['publish-repo'].output.repoContentsUrl }}
         catalogInfoPath: /catalog-info.yaml
 
   output:
     links:
       - title: Repository
-        url: "${{ parameters.publishPlatform === 'github' ? steps['publish-github'].output.remoteUrl : steps['publish-gitlab'].output.remoteUrl }}"
+        url: ${{ steps['publish-repo'].output.remoteUrl }}
       - title: Open in Catalog
         icon: catalog
         url: ${{ steps['register-catalog'].output.entityRef }}
     text:
       - title: Next Steps
         content: |
-          Service **${{ parameters.name }}** créé avec succès (API générée depuis la spécification OpenAPI).
-          1. Clone : `git clone ${{ parameters.publishPlatform === 'github' ? steps['publish-github'].output.remoteUrl : steps['publish-gitlab'].output.remoteUrl }}`
-          2. Générez le code API : `mvn generate-sources`
-          3. Implémentez les delegate interfaces dans `${{ parameters.packageName }}.api.service.delegate`
-          4. Compilez et lancez : `mvn clean install` puis `mvn spring-boot:run -Plocal`
-          5. Swagger UI disponible sur `http://localhost:8080/swagger-ui.html`
-          6. Le pipeline CI démarrera automatiquement au premier push
+          Service **${{ parameters.name }}** scaffolded ready for API code generation from your OpenAPI specification.
 
-          La spec source doit être HIP-compliant. Si elle ne l'est pas encore, lancez l'agent opencode jtbd-api-designer pour (re)générer une version conforme.
+          1. Clone: `git clone ${{ steps['publish-repo'].output.remoteUrl }}`
+          2. Build (generates API code from spec): `mvn clean install`
+          3. Implement delegate interfaces in `${{ parameters.packageName }}.api.service.delegate`
+          4. Run locally: `mvn spring-boot:run -Plocal`
+          5. Swagger UI: `http://localhost:8080/swagger-ui.html`
+          6. CI pipeline starts automatically on the first push

@@ -1,9 +1,4 @@
-{% if values.javaVersion === '17' -%}
-FROM 333230080375.dkr.ecr.eu-west-1.amazonaws.com/image_factory/openjdk:17-alpine3.18
-{%- endif %}
-{% if values.javaVersion === '21' -%}
-FROM 333230080375.dkr.ecr.eu-west-1.amazonaws.com/image_factory/openjdk:openjdk-21-alpine3.21-amd64
-{%- endif %}
+FROM eu.gcr.io/cma-cgm/openjdk:openjdk-21-alpine3.21-amd64
 MAINTAINER cma
 
 COPY jar/*.jar /app.jar

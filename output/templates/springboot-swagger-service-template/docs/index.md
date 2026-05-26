@@ -1,37 +1,38 @@
-# Spring Boot Microservice from OpenAPI Spec
+# Spring Boot from OpenAPI — Template
 
-This template scaffolds a Spring Boot 3 microservice whose API code is generated from a HIP-compliant OpenAPI/Swagger specification provided by the user.
+Scaffolds a fully wired Spring Boot 3 microservice by providing a single OpenAPI/Swagger spec URL.
 
-## Workflow
+## What this template does
 
-The template is the **consumer side** of a two-step authoring flow. The author side is the `jtbd-api-designer` opencode agent shipped in the same `dev-container`.
+1. Fetches the skeleton (Maven project, Dockerfile, pipeline config, Backstage metadata)
+2. Downloads your OpenAPI spec from the URL you provide
+3. Runs `openapi-generator-cli` to produce Java controllers, models, and delegate interfaces
+4. Publishes the repository to GitHub
+5. Registers the service and API in the Backstage Catalog
 
-1. **Author the spec** — run the `jtbd-api-designer` opencode agent. Interviewed by the agent, you produce a HIP-compliant OpenAPI 3.0.3 spec (enforces the 4 mandatory `x-` extensions, the title regex, the standard error responses 400/401/403/416/500, a reusable `Error` schema referenced via `$ref`, and a `securitySchemes` entry).
-2. **Publish the spec** — push the YAML file to a Git-hosted URL accessible by Backstage (typically the HIP `cartography` repo in GitLab).
-3. **Scaffold the service** — open this template in Backstage, fill the form (including the spec URL and the optional HIP metadata), submit. The scaffolder downloads the spec, generates the Spring Boot project, and registers both a `kind: Component` and a `kind: API` entity in the catalog.
+## Parameters
 
-## How it works
+| Param | Required | Description |
+|---|---|---|
+| `name` | Yes | Kebab-case service name for the Catalog |
+| `description` | Yes | One-sentence service description |
+| `owner` | Yes | Team responsible (entity picker) |
+| `system` | Yes | Backstage system this belongs to |
+| `domain` | Yes | Business domain |
+| `swaggerUrl` | Yes | Public URL to OpenAPI 3.x spec (YAML or JSON) |
+| `githubOwner` | Yes (default: `cma-cgm`) | GitHub organization |
+| HIP metadata | No | Collapsible advanced section for enterprise-arch annotations |
 
-1. **Fetch skeleton** — the Spring Boot skeleton (Maven, Docker, CI) is copied.
-2. **Fetch OpenAPI spec** — the spec is downloaded from the URL provided in the form and placed at `src/main/resources/api/openapi.yaml`.
-3. **Publish + Register** — the code is published to Git and registered in the Backstage catalog (`kind: Component` for the service, `kind: API` referencing the spec).
+## Defaults (hidden from the form)
 
-After scaffolding, `mvn generate-sources` generates controller interfaces, models and APIs from the OpenAPI specification.
-
-## Technical details
-
-- OpenAPI Generator Maven plugin (mode `interfaceOnly` + `delegatePattern`).
-- Generated interfaces live under `${{ values.packageName }}.api.controller`.
-- Delegate implementations to author live under `${{ values.packageName }}.api.service.delegate`.
-- Generated DTO models live under `${{ values.packageName }}.api.model`.
-
-## HIP compliance
-
-The source spec at `src/main/resources/api/openapi.yaml` is expected to pass the HIP Spectral ruleset (4 blocks, 4 mandatory `x-` extensions). If the spec was authored via the `jtbd-api-designer` agent, compliance is enforced by construction. Otherwise, run Spectral locally with the `stoplight.spectral` VS Code extension (shipped in the dev-container) before scaffolding.
-
-## References
-
-- [OpenAPI Generator](https://github.com/OpenAPITools/openapi-generator)
-- [Spring Boot](https://spring.io/projects/spring-boot)
-- [Spectral](https://stoplight.io/open-source/spectral) — HIP ruleset enforced on the cartography repo
-- `jtbd-api-designer` opencode agent — shipped in `agents/` of this dev-container
+| Setting | Default |
+|---|---|
+| Java version | 21 |
+| Spring Boot | 3.4.2 |
+| Spring Cloud | 2024.0.0 |
+| Maven groupId | com.cma |
+| Package name | derived from `name` (e.g. `quote-pricing-api` → `com.cma.quotepricing`) |
+| Docker registry | eu.gcr.io/cma-cgm |
+| API type | system |
+| API Lead / Factory | same as `owner` |
+| Architectural domain | same as `domain` |

@@ -157,7 +157,6 @@ spec:
       if: ${{ parameters.publishPlatform === 'github' }}
       action: publish:github
       input:
-        allowedHosts: ['github.com']
         repoUrl: github.com?owner=${{ parameters.githubOwner }}&repo=${{ parameters.name }}
         description: ${{ parameters.description }}
 
@@ -166,7 +165,6 @@ spec:
       if: ${{ parameters.publishPlatform === 'gitlab' }}
       action: publish:gitlab
       input:
-        allowedHosts: ["${{ parameters.gitlabHost }}"]
         repoUrl: ${{ parameters.gitlabHost }}?owner=${{ parameters.gitlabNamespace }}&repo=${{ parameters.name }}
         defaultBranch: main
         description: ${{ parameters.description }}

@@ -4,7 +4,6 @@
 {
   "name": "Backstage Template Creator",
   // Image Docker de base : Node.js 20 sur Debian Bookworm.
-  // Microsoft maintient ces images "dev-ready" : git, zsh, et les outils système sont déjà là.
   "image": "mcr.microsoft.com/devcontainers/javascript-node:20-bookworm",
   // Exécuté sur ton Mac avant que le container démarre.
   // Démarre le proxy socat en arrière-plan si VLLM_HOST est défini dans .env.
@@ -41,10 +40,9 @@
       }
     }
   },
-  // Monte le répertoire cma-backstage (voisin de dev-container) dans le container.
-  // => /workspace/cma-backstage dans le container reflète ../cma-backstage sur l'hôte.
+  // Monte catalogs dans le workspace → visible dans l'explorer VS Code sous /workspaces/dev-container/catalogs.
   "mounts": [
-    "source=${localWorkspaceFolder}/../cma-backstage,target=/workspace/cma-backstage,type=bind,consistency=cached"
+    "source=${localWorkspaceFolder}/../catalogs,target=${containerWorkspaceFolder}/catalogs,type=bind,consistency=cached"
   ],
   // Ports du container exposés sur ta machine hôte.
   // Si tu lances une app Backstage locale pour tester un template,
