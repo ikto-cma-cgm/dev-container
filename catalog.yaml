@@ -7,7 +7,4 @@ metadata:
 spec:
   targets:
     - ./output/templates/springboot-service-template/template.yaml
-    - ./output/templates/liquibase-service-template/template.yaml
-    - ./output/templates/springboot-liquibase-composition-template/template.yaml
-    - ./output/templates/node-service-template/template.yaml
     - ./output/templates/springboot-swagger-service-template/template.yaml
