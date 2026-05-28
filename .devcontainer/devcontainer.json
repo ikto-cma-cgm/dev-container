@@ -12,7 +12,7 @@
   // Installe les outils de développement : opencode (assistant IA CLI), Backstage CLI, Yarn,
   // et Spectral CLI (pour valider les specs OpenAPI contre le ruleset HIP en ligne de commande,
   // en complément de l'extension VS Code stoplight.spectral qui lint en temps réel dans l'éditeur).
-  "postCreateCommand": "npm install -g opencode-ai @ai-sdk/openai-compatible @backstage/cli yarn @stoplight/spectral-cli && cd scripts && npm install && cd ..",
+  "postCreateCommand": "bash .devcontainer/install-glab.sh && npm install -g opencode-ai @ai-sdk/openai-compatible @backstage/cli yarn @stoplight/spectral-cli && cd scripts && npm install && cd ..",
   // Exécuté à chaque démarrage du container.
   // Lit le .env et génère ~/.config/opencode/opencode.json — opencode est alors prêt sans aucune config manuelle.
   "postStartCommand": "bash .devcontainer/setup.sh",
@@ -40,9 +40,10 @@
       }
     }
   },
-  // Monte catalogs dans le workspace → visible dans l'explorer VS Code sous /workspaces/dev-container/catalogs.
+  // Monte catalogs et templates dans le workspace → visibles dans l'explorer VS Code.
   "mounts": [
-    "source=${localWorkspaceFolder}/../catalogs,target=${containerWorkspaceFolder}/catalogs,type=bind,consistency=cached"
+    "source=${localWorkspaceFolder}/../catalogs,target=${containerWorkspaceFolder}/catalogs,type=bind,consistency=cached",
+    "source=${localWorkspaceFolder}/../templates,target=${containerWorkspaceFolder}/templates,type=bind,consistency=cached"
   ],
   // Ports du container exposés sur ta machine hôte.
   // Si tu lances une app Backstage locale pour tester un template,

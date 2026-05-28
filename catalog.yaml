@@ -8,3 +8,7 @@ spec:
   targets:
     - ./output/templates/springboot-service-template/template.yaml
     - ./output/templates/springboot-swagger-service-template/template.yaml
+    - ./output/templates/node-service-template/template.yaml
+    - ./output/templates/node-swagger-service-template/template.yaml
+    - ./output/templates/node-service-template/template.yaml
+    - ./output/templates/node-swagger-service-template/template.yaml

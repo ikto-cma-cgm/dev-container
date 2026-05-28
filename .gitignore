@@ -10,6 +10,9 @@ node_modules/
 # Opencode
 .opencode/
 data/
+templates/
+catalogs/
+repos/
 
 # Local Claude Code instructions (per-clone)
 CLAUDE.md
