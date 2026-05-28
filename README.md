@@ -77,6 +77,7 @@ Puis édite `.env` avec tes valeurs :
 AI_API_BASE=http://ton-serveur:port/v1   # URL de l'API OpenAI-compatible
 AI_API_KEY=ta-cle-api                    # Clé API (ou "dummy" si pas d'auth)
 AI_MODEL=llama3.2                        # Nom du modèle sur ton serveur
+GH_TOKEN=ghp_xxxx                        # Token GitHub (optionnel, pour push de templates)
 ```
 
 Le fichier `.env` est dans `.gitignore` — il ne sera jamais commité.

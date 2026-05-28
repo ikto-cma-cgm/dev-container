@@ -54,7 +54,8 @@ spec:
           title: OpenAPI spec URL
           type: string
           format: uri
-          ui:help: 'URL directe vers le fichier YAML/JSON de votre spec OpenAPI 3.x. GitHub : utilisez l''URL Raw (raw.githubusercontent.com), pas l''URL API ni le lien "blob".'
+          description: 'URL directe vers le fichier YAML ou JSON. GitHub : raw.githubusercontent.com uniquement — pas api.github.com, pas github.com/…/blob/…'
+          ui:help: 'Exemple GitHub : https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{chemin-vers-spec.yaml}'
 
     - title: Java configuration
       required: [packageName]
@@ -163,7 +164,7 @@ spec:
 
           1. Clone: `git clone ${{ steps['publish-repo'].output.remoteUrl }}`
           2. Build (generates API code from spec): `mvn clean install`
-          3. Implement delegate interfaces in `${{ parameters.packageName }}.api.service.delegate`
+          3. Implement the generated interfaces: create a `@RestController` class that implements `${{ parameters.packageName }}.api.controller.{Resource}Api`
           4. Run locally: `mvn spring-boot:run -Plocal`
           5. Swagger UI: `http://localhost:8080/swagger-ui.html`
           6. CI pipeline starts automatically on the first push
