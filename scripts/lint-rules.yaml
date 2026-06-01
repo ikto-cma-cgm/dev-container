@@ -87,3 +87,30 @@ skeleton:
     - '"http'
     - "'' |"
     - '"" |'
+
+## Composable Service Governance — Rules C01-C04
+## Mechanizes the composable standards (SMT-99, ≈ ADR-0001 rules R1-R4) that were
+## previously enforced by review only. These run on composable/orchestrator
+## templates and surface ungoverned composition (unpinned fetches, phantom
+## dependsOn, invalid lifecycle, missing SemVer publication).
+composable:
+  # C03 — spec.lifecycle on produced catalog entities must be a valid Backstage value.
+  validLifecycles:
+    - experimental
+    - production
+    - deprecated
+
+  # C02 — a remote fetch:template must be pinned. These refs are moving branches,
+  # never an acceptable pin for a composed brick.
+  forbiddenFetchRefs:
+    - master
+    - main
+
+  # C01 — SemVer git tag convention. Tag form: '<template-name>/vX.Y.Z' (monorepo)
+  # or a bare 'vX.Y.Z'. This regex matches the version portion.
+  semverTagPattern: 'v\d+\.\d+\.\d+'
+
+  # C04 — dependsOn references allowed even when not produced by this template
+  # (governed shared bricks owned elsewhere). Empty today: no governed shared
+  # brick exists yet, so every external dependsOn is treated as a phantom.
+  dependsOnAllowlist: []

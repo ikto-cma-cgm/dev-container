@@ -1,7 +1,8 @@
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
-import { join, basename, relative } from 'path';
+import { join, basename, relative, isAbsolute } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { execSync } from 'child_process';
 import yaml from 'js-yaml';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -28,6 +29,12 @@ const REQUIRED_ANNOTATIONS = config.skeleton.requiredAnnotations;
 const EXPECTED_LIFECYCLE = config.skeleton.lifecycle;
 const ALLOWED_EXPR_PREFIXES = config.skeleton.allowedExpressionPrefixes;
 const SKELETON_DIR_PATTERNS = config.skeleton.directoryPatterns || ['skeleton'];
+
+const COMPOSABLE = config.composable || {};
+const VALID_LIFECYCLES = COMPOSABLE.validLifecycles || ['experimental', 'production', 'deprecated'];
+const FORBIDDEN_FETCH_REFS = COMPOSABLE.forbiddenFetchRefs || ['master', 'main'];
+const SEMVER_TAG_PATTERN = COMPOSABLE.semverTagPattern || 'v\\d+\\.\\d+\\.\\d+';
+const DEPENDS_ON_ALLOWLIST = COMPOSABLE.dependsOnAllowlist || [];
 
 const KEBAB_CASE = /^[a-z][a-z0-9-]*[a-z0-9]$/;
 const EMOJI_REGEX = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}]/u;
@@ -289,6 +296,133 @@ function r19_output_text(data) {
   return { status: 'PASS' };
 }
 
+// ─── Composable governance rules (C01-C04) ───────────────────────────────────
+// Mechanize the composable standards (SMT-99 ≈ ADR-0001 R1-R4) that were
+// previously enforced by review only. They read text (not yaml.load) so they
+// tolerate Jinja control blocks inside the produced catalog-info.yaml.
+
+function stripQuotes(s) {
+  return String(s).trim().replace(/^['"]|['"]$/g, '');
+}
+
+// All catalog-info.yaml contents found in this template's skeleton dirs.
+function skeletonCatalogContents(dir) {
+  const out = [];
+  for (const s of findSkeletonDirs(dir)) {
+    const p = join(s.path, 'catalog-info.yaml');
+    if (existsSync(p)) out.push({ name: s.name, content: readFileSync(p, 'utf8') });
+  }
+  return out;
+}
+
+// Extract dependsOn entity references from a catalog-info, tolerating Jinja.
+function extractDependsOn(content) {
+  const lines = content.split('\n');
+  const refs = [];
+  let inBlock = false;
+  let blockIndent = 0;
+  for (const line of lines) {
+    const head = line.match(/^(\s*)dependsOn:\s*(.*)$/);
+    if (head) {
+      inBlock = true;
+      blockIndent = head[1].length;
+      const inline = head[2].trim();
+      if (inline.startsWith('[')) {
+        inline.replace(/[[\]]/g, '').split(',').forEach(x => { const v = stripQuotes(x); if (v) refs.push(v); });
+        inBlock = false;
+      }
+      continue;
+    }
+    if (!inBlock) continue;
+    if (/^\s*\{%/.test(line) || line.trim() === '') continue; // Jinja control / blank: stay in block
+    const item = line.match(/^(\s*)-\s*(.+?)\s*$/);
+    if (item && item[1].length > blockIndent) { refs.push(item[2].trim()); continue; }
+    const indented = line.match(/^(\s*)\S/);
+    if (indented && indented[1].length <= blockIndent) inBlock = false; // dedent ends the block
+  }
+  return refs;
+}
+
+// Reduce a dependsOn ref ('component:foo', 'resource: foo', 'foo') to its bare name.
+function bareRef(ref) {
+  const v = ref.includes(':') ? ref.slice(ref.lastIndexOf(':') + 1) : ref;
+  return stripQuotes(v);
+}
+
+// C01 — skeleton/orchestrator must be published under a SemVer git tag.
+function c01_semver_tag(_data, dir) {
+  let tags;
+  try {
+    tags = execSync('git tag --list', { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+      .split('\n').map(t => t.trim()).filter(Boolean);
+  } catch {
+    return { status: 'SKIP', detail: 'not a git repository (cannot verify SemVer tag)' };
+  }
+  const name = basename(dir);
+  const semver = new RegExp(`^${SEMVER_TAG_PATTERN}$`);
+  const match = tags.some(t => {
+    if (semver.test(t)) return true;                         // bare 'vX.Y.Z'
+    const idx = t.lastIndexOf('/');
+    return idx !== -1 && t.slice(0, idx) === name && semver.test(t.slice(idx + 1)); // '<name>/vX.Y.Z'
+  });
+  if (!match) return { status: 'FAIL', detail: `no SemVer tag (expected "${name}/vX.Y.Z" or "vX.Y.Z"); ${tags.length} tag(s) in repo` };
+  return { status: 'PASS' };
+}
+
+// C02 — every remote fetch:template must be pinned to a non-moving ref.
+function c02_pinned_fetch(data) {
+  const steps = data?.spec?.steps || [];
+  const offenders = [];
+  for (const step of steps) {
+    if (step.action !== 'fetch:template') continue;
+    const url = step?.input?.url;
+    if (typeof url !== 'string' || !/^https?:\/\//.test(url)) continue; // local (./...) = OK
+    const refMatch = url.match(/[?&]ref=([^&]+)/);
+    const treeMatch = url.match(/\/tree\/([^/]+)\//);
+    const ref = refMatch ? refMatch[1] : (treeMatch ? treeMatch[1] : null);
+    const id = step.id || '(step)';
+    if (!ref) offenders.push(`${id}: unpinned remote fetch (${url})`);
+    else if (FORBIDDEN_FETCH_REFS.includes(ref)) offenders.push(`${id}: pinned to moving branch "${ref}"`);
+  }
+  if (offenders.length > 0) return { status: 'FAIL', detail: offenders.join('; ') };
+  return { status: 'PASS' };
+}
+
+// C03 — every spec.lifecycle on a produced entity must be a valid Backstage value.
+function c03_valid_lifecycle(_data, dir) {
+  const catalogs = skeletonCatalogContents(dir);
+  if (catalogs.length === 0) return { status: 'SKIP', detail: 'no skeleton catalog-info.yaml' };
+  const issues = [];
+  for (const c of catalogs) {
+    for (const m of c.content.matchAll(/lifecycle:\s*(\S+)/g)) {
+      const val = stripQuotes(m[1]);
+      if (!VALID_LIFECYCLES.includes(val)) issues.push(`${c.name}: invalid lifecycle "${val}"`);
+    }
+  }
+  if (issues.length > 0) return { status: 'FAIL', detail: `${issues.join('; ')} (valid: ${VALID_LIFECYCLES.join(', ')})` };
+  return { status: 'PASS' };
+}
+
+// C04 — every dependsOn reference must resolve to a produced entity or an allowlisted brick.
+function c04_resolvable_dependson(_data, dir) {
+  const catalogs = skeletonCatalogContents(dir);
+  if (catalogs.length === 0) return { status: 'SKIP', detail: 'no skeleton catalog-info.yaml' };
+  const defined = new Set();
+  for (const c of catalogs) {
+    for (const m of c.content.matchAll(/^\s*name:\s*(.+?)\s*$/gm)) defined.add(stripQuotes(m[1]));
+  }
+  const phantoms = [];
+  for (const c of catalogs) {
+    for (const ref of extractDependsOn(c.content)) {
+      const bare = bareRef(ref);
+      if (defined.has(bare) || DEPENDS_ON_ALLOWLIST.includes(bare) || DEPENDS_ON_ALLOWLIST.includes(ref)) continue;
+      phantoms.push(bare);
+    }
+  }
+  if (phantoms.length > 0) return { status: 'FAIL', detail: `unresolved dependsOn (phantom): ${[...new Set(phantoms)].join(', ')}` };
+  return { status: 'PASS' };
+}
+
 // ─── Rule registry ───────────────────────────────────────────────────────────
 
 const RULES = [
@@ -311,6 +445,10 @@ const RULES = [
   { id: 'R17', name: 'step IDs verb-object pattern', fn: (d, _dir) => r17_step_ids(d), category: 'Steps' },
   { id: 'R18', name: 'output has links', fn: (d, _dir) => r18_output_links(d), category: 'Steps' },
   { id: 'R19', name: 'output has text', fn: (d, _dir) => r19_output_text(d), category: 'Steps' },
+  { id: 'C01', name: 'published under a SemVer tag', fn: (d, dir) => c01_semver_tag(d, dir), category: 'Composable' },
+  { id: 'C02', name: 'remote fetch:template is pinned', fn: (d, _dir) => c02_pinned_fetch(d), category: 'Composable' },
+  { id: 'C03', name: 'lifecycle is a valid Backstage value', fn: (d, dir) => c03_valid_lifecycle(d, dir), category: 'Composable' },
+  { id: 'C04', name: 'dependsOn references resolve', fn: (d, dir) => c04_resolvable_dependson(d, dir), category: 'Composable' },
 ];
 
 // ─── Discovery ───────────────────────────────────────────────────────────────
@@ -337,7 +475,7 @@ function findAllTemplateDirs(root) {
 
 // ─── Runner ──────────────────────────────────────────────────────────────────
 
-function lintTemplate(dir) {
+function lintTemplate(dir, rules) {
   const templatePath = join(dir, 'template.yaml');
   let data;
   try {
@@ -346,7 +484,7 @@ function lintTemplate(dir) {
     return [{ id: 'PARSE', name: 'YAML parsing', status: 'FAIL', detail: e.message, category: 'Parse' }];
   }
 
-  return RULES.map(rule => {
+  return rules.map(rule => {
     try {
       const result = rule.fn(data, dir);
       return { ...rule, ...result };
@@ -386,11 +524,30 @@ function printResults(templateDir, results, root) {
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 const root = process.cwd();
-const target = process.argv[2];
+
+// Parse args: one positional path + optional flags (--only <Category>).
+const argv = process.argv.slice(2);
+let target = null;
+let onlyCategory = null;
+for (let i = 0; i < argv.length; i++) {
+  const a = argv[i];
+  if (a === '--only') { onlyCategory = argv[++i]; continue; }
+  if (a.startsWith('--only=')) { onlyCategory = a.slice('--only='.length); continue; }
+  if (!a.startsWith('--') && target === null) target = a;
+}
+
+const activeRules = onlyCategory
+  ? RULES.filter(r => r.category.toLowerCase() === onlyCategory.toLowerCase())
+  : RULES;
+if (onlyCategory && activeRules.length === 0) {
+  const cats = [...new Set(RULES.map(r => r.category))];
+  console.error(red(`Unknown category "${onlyCategory}". Available: ${cats.join(', ')}`));
+  process.exit(1);
+}
 
 let dirs;
 if (target) {
-  const resolved = join(root, target);
+  const resolved = isAbsolute(target) ? target : join(root, target);
   if (!existsSync(join(resolved, 'template.yaml'))) {
     console.error(red(`No template.yaml found in ${target}`));
     process.exit(1);
@@ -409,7 +566,7 @@ console.log(bold(`\nLinting ${dirs.length} template(s) against Service Standards
 
 let allPassed = true;
 for (const dir of dirs) {
-  const results = lintTemplate(dir);
+  const results = lintTemplate(dir, activeRules);
   const passed = printResults(dir, results, root);
   if (!passed) allPassed = false;
 }
