@@ -1,0 +1,263 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: webdriverio-template
+  title: 🧪 WebdriverIO E2E Testing
+  description: Add end-to-end testing to your project in 2 minutes - Zero config needed!
+  tags:
+    - quality
+    - testing
+    - e2e
+    - webdriverio
+    - recommended
+spec:
+  owner: quality-team
+  type: quality-service
+
+  parameters:
+    - title: 🚀 Get Started - Just 3 Questions!
+      description: Add E2E testing to your project in minutes. Everything else has smart defaults.
+      required:
+        - projectName
+        - repoUrl
+        - baseUrl
+      properties:
+        projectName:
+          title: Project Name
+          type: string
+          description: Name of your project
+          pattern: '^[a-z][a-z0-9-]*[a-z0-9]$'
+          maxLength: 50
+          ui:autofocus: true
+          ui:placeholder: 'my-awesome-app'
+
+        repoUrl:
+          title: Repository
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+
+        baseUrl:
+          title: Application URL
+          type: string
+          description: Where your app runs locally
+          default: 'http://localhost:3000'
+          ui:placeholder: 'http://localhost:3000'
+          ui:help: 'We will test against this URL. Change it later in .env or docker-compose.yml'
+
+    - title: ⚙️ Advanced Options (Optional)
+      description: 'Smart defaults: Chrome headless, Mocha framework, Allure reports, runs on PRs. Expand to customize.'
+      properties:
+        includeExampleTests:
+          title: Include Example Tests
+          type: boolean
+          description: Generate comprehensive test examples (login, navigation, forms, etc.)
+          default: true
+          ui:help: 'Recommended - Learn by example!'
+
+        testFramework:
+          title: Test Framework
+          type: string
+          description: Choose your testing framework
+          default: mocha
+          enum:
+            - mocha
+            - jasmine
+            - cucumber
+          enumNames:
+            - 'Mocha (Recommended - Flexible and popular)'
+            - 'Jasmine (BDD style)'
+            - 'Cucumber (Gherkin syntax)'
+
+        maxInstances:
+          title: Parallel Test Instances
+          type: number
+          description: Number of tests to run in parallel
+          default: 5
+          minimum: 1
+          maximum: 20
+          ui:help: 'Higher = faster, but needs more resources'
+
+        runOnPR:
+          title: Run Tests on Pull Requests
+          type: boolean
+          description: Automatically run tests when PR is created
+          default: true
+
+        runScheduled:
+          title: Run Nightly Tests
+          type: boolean
+          description: Run tests every night at 2 AM
+          default: false
+
+        dockerBaseImage:
+          title: Docker Base Image
+          type: string
+          description: Custom Node.js image (e.g., from your internal registry)
+          default: 'node:18-slim'
+          ui:help: 'Useful if you are behind a restrictive proxy or use an internal mirror.'
+
+  steps:
+    - id: fetch-template
+      name: Fetch WebdriverIO Configuration
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./webdriver-io
+        values:
+          # User-provided values
+          projectName: ${{ parameters.projectName }}
+          baseUrl: ${{ parameters.baseUrl }}
+
+          # Optional advanced settings (with fallbacks)
+          testFramework: ${{ parameters.testFramework or 'mocha' }}
+          maxInstances: ${{ parameters.maxInstances or 5 }}
+          runOnPR: ${{ parameters.runOnPR !== false }}
+          runScheduled: ${{ parameters.runScheduled or false }}
+          includeExampleTests: ${{ parameters.includeExampleTests !== false }}
+          dockerBaseImage: ${{ parameters.dockerBaseImage or 'node:18-slim' }}
+
+          # Testing defaults
+          testType: e2e
+          testTimeout: 60000
+          includePageObjects: true
+
+          # Browser defaults
+          browsers: ['chrome']
+          headless: true
+          browserVersion: latest
+
+          # Execution defaults
+          parallelExecution: true
+          executionMode: 'local'
+
+          # Reporting defaults
+          reporters: ['spec', 'allure']
+          enableScreenshots: true
+          enableVideo: false
+
+          # CI/CD defaults
+          runOnPush: true
+          scheduleCron: '0 2 * * *'
+
+    - id: publish
+      name: Create Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        branchName: add-webdriverio-testing
+        title: "🧪 Add E2E Testing with WebdriverIO"
+        description: |
+          # 🎉 E2E Testing Setup Complete!
+
+          This PR adds **WebdriverIO end-to-end testing** to your project with everything pre-configured!
+
+          ## ✨ What's Included
+
+          - ✅ **Dockerized environment** - Node.js, Chrome, WebdriverIO all containerized
+          - ✅ **Zero local dependencies** - Everything runs in Docker
+          - ✅ **{{ parameters.testFramework }} framework** with Chai assertions
+          - ✅ **Allure reports** for beautiful test results
+          - ✅ **CI/CD integration** - Tests run automatically on PRs{% if parameters.includeExampleTests %}
+          - ✅ **Comprehensive examples** (login, forms, navigation, etc.){% endif %}
+
+          ## 🚀 Quick Start
+
+          ```bash
+          cd webdriver-io
+          npm install             # Install dependencies
+          npm test                # Build Docker image & run tests!
+          ```
+
+          That's it! The first run builds the Docker image (takes 2-3 min), then subsequent runs are instant.
+
+          ## 📊 Configuration
+
+          - **Framework**: {{ parameters.testFramework }}
+          - **Base URL**: {{ parameters.baseUrl }}
+          - **Parallel Tests**: {{ parameters.maxInstances }} instances
+          - **CI/CD**: {% if parameters.runOnPR %}✅ Runs on PRs{% else %}❌{% endif %} • {% if parameters.runScheduled %}✅ Nightly builds{% else %}❌{% endif %}
+
+          ## 📚 Next Steps
+
+          1. **Merge this PR** to add E2E testing to your project
+          2. **Write your tests** in `webdriver-io/tests/specs/`
+          3. **Run locally** with `npm test` or `npm run test:ui` (see browser)
+          4. **Push changes** - tests run automatically in CI/CD
+
+          ## 🔧 Useful Commands
+
+          ```bash
+          npm test              # Run tests in Docker
+          npm run test:ui       # See browser while testing
+          npm run test:debug    # Access container shell
+          npm run docker:build  # Rebuild Docker image
+          ```
+
+          ## 🆘 Need Help?
+
+          - 📖 See `webdriver-io/README.md` for full documentation
+          - 💬 Ask on Slack: #quality-platform
+          - 📧 Email: quality-platform-team@your-company.com
+
+          ---
+
+          🤖 Generated by WebdriverIO E2E Testing Template
+          🏆 Maintained by Quality Platform Team
+
+  output:
+    links:
+      - title: 🎉 View Pull Request
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: 📖 Documentation
+        icon: docs
+        url: https://webdriver.io/docs/gettingstarted
+      - title: 💬 Get Help
+        icon: chat
+        url: https://slack.com/app_redirect?channel=quality-platform
+    text:
+      - title: ✅ E2E Testing Added Successfully!
+        content: |
+          Your pull request is ready! 🎉
+
+          ## 🚀 What's Next?
+
+          **1. Review & Merge the PR**
+          → ${{ steps.publish.output.remoteUrl }}
+
+          **2. Try it locally**
+          ```bash
+          cd webdriver-io
+          npm install
+          npm test
+          ```
+
+          First run builds the Docker image (2-3 min), then it's instant!
+
+          **3. Start writing tests**
+          Your tests go in `webdriver-io/tests/specs/`{% if parameters.includeExampleTests %} - comprehensive examples included!{% endif %}
+
+          ## 📊 Your Setup
+
+          - ✅ Framework: **{{ parameters.testFramework }}**
+          - ✅ Base URL: **{{ parameters.baseUrl }}**
+          - ✅ Parallel tests: **{{ parameters.maxInstances }} instances**
+          - ✅ CI/CD: **{% if parameters.runOnPR %}Runs on PRs{% else %}Disabled{% endif %}**{% if parameters.runScheduled %}
+          - ✅ Nightly tests: **Enabled (2 AM)**{% endif %}
+
+          ## 💡 Pro Tips
+
+          - `npm run test:ui` - See the browser while testing
+          - `npm run test:debug` - Access container shell for debugging
+          - `BASE_URL=https://staging.com npm test` - Test different environments
+          - Tests run in Docker - no Node.js installation needed!
+
+          ## 🆘 Need Help?
+
+          - 📖 Full docs in `webdriver-io/README.md`
+          - 💬 Slack: #quality-platform
+          - 📧 quality-platform-team@your-company.com
+
+          Happy testing! 🧪

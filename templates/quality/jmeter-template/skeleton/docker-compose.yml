@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  jmeter:
+    build:
+      context: .
+      dockerfile: Dockerfile.jmeter
+    image: ${{ values.projectName }}-jmeter:latest
+    container_name: ${{ values.projectName }}-jmeter
+    env_file:
+      - .env
+    environment:
+      # Target configuration
+      - TARGET_HOST=${TARGET_HOST:-host.docker.internal}
+      - TARGET_PORT=${TARGET_PORT:-8080}
+      - TARGET_PROTOCOL=${TARGET_PROTOCOL:-http}
+      # Load configuration
+      - THREADS=${THREADS:-${{ values.defaultThreads }}}
+      - RAMP_UP=${RAMP_UP:-${{ values.defaultRampUp }}}
+      - DURATION=${DURATION:-${{ values.defaultDuration }}}
+      # Test execution
+      - TEST_PLAN=${TEST_PLAN:-}
+      - GENERATE_REPORT=${GENERATE_REPORT:-true}
+      # JVM configuration
+      - HEAP=${HEAP:--Xms1g -Xmx1g -XX:MaxMetaspaceSize=256m}
+      # Timezone
+      - TZ=${TZ:-Europe/Paris}
+    volumes:
+      # Mount test plans
+      - ./test-plans:/jmeter/test-plans:ro
+      # Mount test data
+      - ./test-data:/jmeter/test-data:ro
+      # Mount results (read-write)
+      - ./results:/jmeter/results:rw
+      # Mount reports (read-write)
+      - ./reports:/jmeter/reports:rw
+      # Optional: custom configuration
+      - ./config:/jmeter/config:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+networks:
+  default:
+    name: ${{ values.projectName }}-jmeter-network

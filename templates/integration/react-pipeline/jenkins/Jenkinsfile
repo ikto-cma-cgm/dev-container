@@ -1,0 +1,147 @@
+pipeline {
+    agent {
+        docker {
+            image 'node:${NODE_VERSION}'
+        }
+    }
+
+    environment {
+        NODE_VERSION = '${NODE_VERSION}'
+        APP_NAME = '${APP_NAME}'
+        BUILD_COMMAND = '${BUILD_COMMAND}'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                script {
+                    env.GIT_COMMIT_SHORT = sh(
+                        script: "git rev-parse --short HEAD",
+                        returnStdout: true
+                    ).trim()
+                }
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm ci'
+            }
+        }
+
+        stage('Lint') {
+            when {
+                expression { return ${RUN_LINT} }
+            }
+            steps {
+                sh 'npm run lint'
+            }
+        }
+
+        stage('Test') {
+            when {
+                expression { return ${RUN_TESTS} }
+            }
+            steps {
+                sh 'npm run test'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh '${BUILD_COMMAND}'
+            }
+        }
+
+        stage('Lighthouse CI') {
+            when {
+                expression { return ${ENABLE_LIGHTHOUSE} && env.BRANCH_NAME == 'PR-*' }
+            }
+            steps {
+                sh '''
+                    npm install -g @lhci/cli
+                    npm run build
+                    lhci autorun
+                '''
+            }
+        }
+
+        stage('E2E Tests') {
+            when {
+                expression { return ${RUN_E2E_TESTS} }
+            }
+            steps {
+                sh '''
+                    npx playwright install --with-deps
+                    npm run test:e2e
+                '''
+            }
+        }
+
+        stage('Docker Build & Push') {
+            when {
+                expression { return ${ENABLE_DOCKER} }
+                branch '${DEFAULT_BRANCH}'
+            }
+            steps {
+                script {
+                    docker.withRegistry("https://${REGISTRY_URL}", 'docker-registry-credentials') {
+                        def image = docker.build(
+                            "${REGISTRY_URL}/${APP_NAME}:${env.GIT_COMMIT_SHORT}",
+                            "."
+                        )
+                        image.push()
+                        image.push('latest')
+                    }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                expression { return ${ENABLE_AUTO_DEPLOYMENT} }
+                branch '${DEFAULT_BRANCH}'
+            }
+            steps {
+                script {
+                    if ('${DEPLOYMENT_TARGET}' == 'vercel') {
+                        withCredentials([string(credentialsId: 'vercel-token', variable: 'VERCEL_TOKEN')]) {
+                            sh '''
+                                npm install -g vercel
+                                vercel --prod --token=\$VERCEL_TOKEN
+                            '''
+                        }
+                    } else if ('${DEPLOYMENT_TARGET}' == 'netlify') {
+                        withCredentials([string(credentialsId: 'netlify-token', variable: 'NETLIFY_TOKEN')]) {
+                            sh '''
+                                npm install -g netlify-cli
+                                netlify deploy --prod --auth=\$NETLIFY_TOKEN
+                            '''
+                        }
+                    } else if ('${DEPLOYMENT_TARGET}' == 'kubernetes') {
+                        withKubeConfig([credentialsId: 'kubernetes-credentials']) {
+                            sh """
+                                kubectl set image deployment/${APP_NAME} \\
+                                    ${APP_NAME}=${REGISTRY_URL}/${APP_NAME}:${env.GIT_COMMIT_SHORT} \\
+                                    --namespace=${KUBERNETES_NAMESPACE}
+                            """
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo 'Frontend pipeline completed successfully!'
+        }
+        failure {
+            echo 'Frontend pipeline failed!'
+        }
+    }
+}

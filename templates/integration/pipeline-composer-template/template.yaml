@@ -1,0 +1,444 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: pipeline-composer-template
+  title: Pipeline Composer (CI/CD + Tests)
+  description: |
+    Compose a complete CI/CD pipeline with integrated quality testing.
+    Select your CI provider and choose which test tools to include in your pipeline.
+  tags:
+    - integration
+    - cicd
+    - pipeline
+    - composer
+    - quality
+    - recommended
+spec:
+  owner: platform-team
+  type: pipeline
+
+  parameters:
+    # Step 1: Project Configuration
+    - title: Project Configuration
+      required:
+        - repoUrl
+        - projectType
+        - ciProvider
+      properties:
+        repoUrl:
+          title: Repository
+          type: string
+          description: The repository where the pipeline will be added
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+
+        projectType:
+          title: Project Type
+          type: string
+          description: Select your project technology stack
+          default: nodejs
+          enum:
+            - nodejs
+            - react
+            - fullstack
+            - java
+          enumNames:
+            - Node.js Service
+            - React/Next.js Application
+            - Full-Stack (React + Node.js)
+            - Java/Spring Boot Service
+
+        ciProvider:
+          title: CI/CD Provider
+          type: string
+          description: Select your CI/CD platform
+          default: github-actions
+          enum:
+            - github-actions
+            - gitlab-ci
+            - jenkins
+          enumNames:
+            - GitHub Actions
+            - GitLab CI
+            - Jenkins
+
+      dependencies:
+        projectType:
+          oneOf:
+            - properties:
+                projectType:
+                  enum: [nodejs, react, fullstack]
+                nodeVersion:
+                  title: Node.js Version
+                  type: string
+                  default: '20.x'
+                  enum: ['18.x', '20.x', '22.x']
+            - properties:
+                projectType:
+                  enum: [java]
+                javaVersion:
+                  title: Java Version
+                  type: string
+                  default: '17'
+                  enum: ['17', '21']
+
+    # Step 2: Pipeline Stages
+    - title: Pipeline Stages
+      description: Configure which stages to include in your pipeline
+      properties:
+        enableBuild:
+          title: Build Stage
+          type: boolean
+          description: Include build and compilation stage
+          default: true
+
+        enableUnitTests:
+          title: Unit Tests
+          type: boolean
+          description: Run unit tests
+          default: true
+
+        enableLinting:
+          title: Linting
+          type: boolean
+          description: Run code linting (ESLint, etc.)
+          default: true
+
+        enableSecurityScan:
+          title: Security Scan
+          type: boolean
+          description: Run security vulnerability scanning
+          default: true
+
+        enableDocker:
+          title: Docker Build
+          type: boolean
+          description: Build and push Docker image
+          default: true
+
+        deploymentTarget:
+          title: Deployment Target
+          type: string
+          description: Where to deploy (optional)
+          default: none
+          enum:
+            - none
+            - kubernetes
+            - cloud-run
+            - aws-ecs
+            - vercel
+          enumNames:
+            - No deployment (manual)
+            - Kubernetes
+            - Google Cloud Run
+            - AWS ECS
+            - Vercel
+
+    # Step 3: Quality Testing Integration
+    - title: Quality Testing Integration
+      description: |
+        Select which quality testing tools to integrate in your pipeline.
+        These will run as dedicated stages after build/unit tests.
+
+        **Prerequisites:** These options require the test setup to exist in your repository.
+        Use the dedicated templates first if needed.
+      properties:
+        enableSonarQube:
+          title: SonarQube Code Quality
+          type: boolean
+          description: Add SonarQube static code analysis
+          default: true
+          ui:help: 'Requires SonarQube server and SONAR_TOKEN secret'
+
+        enableWebDriverIO:
+          title: WebDriverIO E2E Tests
+          type: boolean
+          description: |
+            Add end-to-end browser testing.
+            Requires webdriver-io/ directory in your repo.
+          default: false
+          ui:help: |
+            No setup yet? Use the WebDriverIO template first:
+            /create/templates/default/webdriverio-template
+
+        enableJMeter:
+          title: JMeter Load Tests
+          type: boolean
+          description: |
+            Add HTTP/API load testing.
+            Requires jmeter/ directory in your repo.
+          default: false
+          ui:help: |
+            No setup yet? Use the JMeter template first:
+            /create/templates/default/jmeter-template
+
+    # Step 4: E2E Test Configuration (conditional)
+    - title: E2E Test Configuration
+      description: Configure WebDriverIO E2E tests
+      properties:
+        wdioBaseUrl:
+          title: Application URL for E2E Tests
+          type: string
+          description: URL where your application runs for testing
+          default: 'http://localhost:3000'
+
+        wdioExecutionMode:
+          title: E2E Execution Mode
+          type: string
+          description: How to run E2E tests
+          default: docker
+          enum:
+            - docker
+            - local
+            - cloud
+          enumNames:
+            - Docker (Recommended)
+            - Local (Node.js)
+            - Cloud (BrowserStack)
+
+        wdioRunOnPR:
+          title: Run E2E on Pull Requests
+          type: boolean
+          description: Automatically run E2E tests on PRs
+          default: true
+
+      dependencies:
+        wdioBaseUrl:
+          allOf:
+            - properties:
+                enableWebDriverIO:
+                  const: true
+
+    # Step 5: Load Test Configuration (conditional)
+    - title: Load Test Configuration
+      description: Configure JMeter load tests
+      properties:
+        jmeterTargetHost:
+          title: Target Host for Load Tests
+          type: string
+          description: API host to test (without protocol)
+          default: 'localhost'
+
+        jmeterTargetPort:
+          title: Target Port
+          type: string
+          default: '8080'
+
+        jmeterThreads:
+          title: Virtual Users (Threads)
+          type: number
+          description: Number of concurrent users to simulate
+          default: 10
+          minimum: 1
+          maximum: 500
+
+        jmeterDuration:
+          title: Test Duration (seconds)
+          type: number
+          default: 60
+          minimum: 10
+          maximum: 3600
+
+        jmeterRunOnPR:
+          title: Run Load Tests on Pull Requests
+          type: boolean
+          description: Usually disabled to save resources
+          default: false
+
+      dependencies:
+        jmeterTargetHost:
+          allOf:
+            - properties:
+                enableJMeter:
+                  const: true
+
+  steps:
+    # 1. Fetch base pipeline template based on provider
+    - id: fetch-pipeline
+      name: Generate CI/CD Pipeline
+      action: fetch:template
+      input:
+        url: ./skeleton/${{ parameters.ciProvider }}
+        values:
+          # Project info
+          projectName: ${{ parameters.repoUrl | parseRepoUrl | pick('repo') }}
+          projectType: ${{ parameters.projectType }}
+          nodeVersion: ${{ parameters.nodeVersion }}
+          javaVersion: ${{ parameters.javaVersion }}
+
+          # Pipeline stages
+          enableBuild: ${{ parameters.enableBuild }}
+          enableUnitTests: ${{ parameters.enableUnitTests }}
+          enableLinting: ${{ parameters.enableLinting }}
+          enableSecurityScan: ${{ parameters.enableSecurityScan }}
+          enableDocker: ${{ parameters.enableDocker }}
+          deploymentTarget: ${{ parameters.deploymentTarget }}
+
+          # Quality testing
+          enableSonarQube: ${{ parameters.enableSonarQube }}
+          enableWebDriverIO: ${{ parameters.enableWebDriverIO }}
+          enableJMeter: ${{ parameters.enableJMeter }}
+
+          # E2E config
+          wdioBaseUrl: ${{ parameters.wdioBaseUrl }}
+          wdioExecutionMode: ${{ parameters.wdioExecutionMode }}
+          wdioRunOnPR: ${{ parameters.wdioRunOnPR }}
+
+          # Load test config
+          jmeterTargetHost: ${{ parameters.jmeterTargetHost }}
+          jmeterTargetPort: ${{ parameters.jmeterTargetPort }}
+          jmeterThreads: ${{ parameters.jmeterThreads }}
+          jmeterDuration: ${{ parameters.jmeterDuration }}
+          jmeterRunOnPR: ${{ parameters.jmeterRunOnPR }}
+
+    # 2. Create Pull Request
+    - id: publish
+      name: Create Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        branchName: add-cicd-pipeline
+        title: "Add CI/CD Pipeline with Quality Testing"
+        description: |
+          # CI/CD Pipeline Configuration
+
+          This PR adds a complete CI/CD pipeline to your project.
+
+          ## Pipeline Overview
+
+          **CI Provider**: ${{ parameters.ciProvider }}
+          **Project Type**: ${{ parameters.projectType }}
+
+          ### Stages Included
+
+          | Stage | Enabled |
+          |-------|---------|
+          | Build | ${{ parameters.enableBuild }} |
+          | Unit Tests | ${{ parameters.enableUnitTests }} |
+          | Linting | ${{ parameters.enableLinting }} |
+          | Security Scan | ${{ parameters.enableSecurityScan }} |
+          | Docker Build | ${{ parameters.enableDocker }} |
+          | Deployment | ${{ parameters.deploymentTarget }} |
+
+          ### Quality Testing Integration
+
+          | Tool | Enabled | Notes |
+          |------|---------|-------|
+          | SonarQube | ${{ parameters.enableSonarQube }} | Code quality analysis |
+          | WebDriverIO | ${{ parameters.enableWebDriverIO }} | E2E browser tests |
+          | JMeter | ${{ parameters.enableJMeter }} | Load/performance tests |
+
+          {% if parameters.enableWebDriverIO %}
+          #### WebDriverIO Configuration
+          - **Base URL**: ${{ parameters.wdioBaseUrl }}
+          - **Execution Mode**: ${{ parameters.wdioExecutionMode }}
+          - **Run on PRs**: ${{ parameters.wdioRunOnPR }}
+
+          > **Note**: Ensure the `webdriver-io/` directory exists in your repository.
+          > Use the WebDriverIO template to set it up if needed.
+          {% endif %}
+
+          {% if parameters.enableJMeter %}
+          #### JMeter Configuration
+          - **Target**: ${{ parameters.jmeterTargetHost }}:${{ parameters.jmeterTargetPort }}
+          - **Threads**: ${{ parameters.jmeterThreads }}
+          - **Duration**: ${{ parameters.jmeterDuration }}s
+
+          > **Note**: Ensure the `jmeter/` directory exists in your repository.
+          > Use the JMeter template to set it up if needed.
+          {% endif %}
+
+          ## Required Secrets
+
+          Please ensure the following secrets are configured in your repository:
+
+          {% if parameters.enableDocker %}
+          - `REGISTRY_URL` - Docker registry URL
+          - `REGISTRY_USERNAME` - Registry username
+          - `REGISTRY_PASSWORD` - Registry password
+          {% endif %}
+          {% if parameters.enableSonarQube %}
+          - `SONAR_TOKEN` - SonarQube authentication token
+          - `SONAR_HOST_URL` - SonarQube server URL
+          {% endif %}
+          {% if parameters.deploymentTarget == 'kubernetes' %}
+          - `KUBE_CONFIG` - Kubernetes configuration
+          - `K8S_NAMESPACE` - Target namespace
+          {% endif %}
+          {% if parameters.wdioExecutionMode == 'cloud' %}
+          - `BROWSERSTACK_USERNAME` - BrowserStack username
+          - `BROWSERSTACK_ACCESS_KEY` - BrowserStack access key
+          {% endif %}
+
+          ---
+
+          Generated by **Pipeline Composer Template**
+          Maintained by Platform Team
+
+  output:
+    links:
+      - title: View Pull Request
+        url: ${{ steps.publish.output.remoteUrl }}
+        icon: github
+
+      - title: WebDriverIO Template
+        icon: scaffolder
+        url: /create/templates/default/webdriverio-template
+
+      - title: JMeter Template
+        icon: scaffolder
+        url: /create/templates/default/jmeter-template
+
+      - title: Pipeline Documentation
+        icon: docs
+        url: https://docs.example.com/cicd-pipelines
+
+    text:
+      - title: Pipeline Added Successfully!
+        content: |
+          Your CI/CD pipeline has been configured!
+
+          ## Next Steps
+
+          1. **Review and merge** the pull request:
+             ${{ steps.publish.output.remoteUrl }}
+
+          2. **Configure secrets** in your repository settings
+
+          {% if parameters.enableWebDriverIO %}
+          ### WebDriverIO E2E Tests
+
+          Your pipeline includes E2E tests. Make sure the `webdriver-io/` directory exists in your repository.
+
+          **No setup yet?** Use the WebDriverIO template:
+          [Create WebDriverIO Setup](/create/templates/default/webdriverio-template)
+          {% endif %}
+
+          {% if parameters.enableJMeter %}
+          ### JMeter Load Tests
+
+          Your pipeline includes load tests. Make sure the `jmeter/` directory exists in your repository.
+
+          **No setup yet?** Use the JMeter template:
+          [Create JMeter Setup](/create/templates/default/jmeter-template)
+          {% endif %}
+
+          ## Pipeline Stages
+
+          Your pipeline will run these stages:
+          {% if parameters.enableBuild %}- Build & Compile{% endif %}
+          {% if parameters.enableUnitTests %}- Unit Tests{% endif %}
+          {% if parameters.enableLinting %}- Code Linting{% endif %}
+          {% if parameters.enableSecurityScan %}- Security Scanning{% endif %}
+          {% if parameters.enableSonarQube %}- SonarQube Analysis{% endif %}
+          {% if parameters.enableWebDriverIO %}- E2E Tests (WebDriverIO){% endif %}
+          {% if parameters.enableJMeter %}- Load Tests (JMeter){% endif %}
+          {% if parameters.enableDocker %}- Docker Build & Push{% endif %}
+          {% if parameters.deploymentTarget != 'none' %}- Deploy to ${{ parameters.deploymentTarget }}{% endif %}
+
+          ## Support
+
+          - Slack: #platform-team
+          - Email: platform-team@example.com

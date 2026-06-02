@@ -7,9 +7,10 @@ node_modules/
 # Historique aider (ancien assistant)
 .aider.*
 
-# Opencode
-.opencode/
 data/
 
 # Local Claude Code instructions (per-clone)
 CLAUDE.md
+.DS_Store
+catalogs/
+repos/

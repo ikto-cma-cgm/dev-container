@@ -1,0 +1,34 @@
+# WebdriverIO E2E Testing - Generated files
+
+# Test Results
+/test-results/
+/allure-results/
+/allure-report/
+/screenshots/
+/videos/
+*.log
+
+# WebdriverIO
+.wdio-*
+wdio-*.log
+
+# Node modules
+node_modules/
+package-lock.json
+yarn.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local

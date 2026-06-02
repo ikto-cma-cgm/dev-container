@@ -1,0 +1,29 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: nodejs-pipeline-template
+  title: Node.js CI/CD Pipeline Templates
+  description: Production-ready CI/CD pipeline configurations for Node.js microservices (GitHub Actions, Jenkins, GitLab CI)
+  annotations:
+    github.com/project-slug: ikto-cma-cgm/node-pipeline-template
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - cicd
+    - pipeline
+    - nodejs
+    - github-actions
+    - jenkins
+    - gitlab-ci
+    - integration
+  links:
+    - url: https://github.com/ikto-cma-cgm/node-pipeline-template
+      title: Repository
+      icon: github
+    - url: https://github.com/ikto-cma-cgm/node-pipeline-template/blob/main/README.md
+      title: Documentation
+      icon: docs
+spec:
+  type: pipeline-template
+  lifecycle: production
+  owner: platform-team
+  system: integration-platform

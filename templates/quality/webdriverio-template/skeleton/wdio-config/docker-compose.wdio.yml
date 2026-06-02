@@ -1,0 +1,107 @@
+# Docker Compose configuration for WebdriverIO Selenium Grid
+# Project: ${{ parameters.projectName }}
+# Note: Only used when executionMode is 'docker'
+
+version: '3.8'
+
+services:
+  # Selenium Hub
+  selenium-hub:
+    image: selenium/hub:latest
+    container_name: selenium-hub
+    ports:
+      - "4444:4444"
+      - "4442:4442"
+      - "4443:4443"
+    environment:
+      - GRID_MAX_SESSION=10
+      - GRID_BROWSER_TIMEOUT=300
+      - GRID_TIMEOUT=300
+    networks:
+      - selenium-grid
+
+{% if 'chrome' in values.browsers %}
+  # Chrome Node
+  chrome:
+    image: selenium/node-chrome:latest
+    container_name: selenium-chrome
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      - SE_NODE_MAX_SESSIONS=5
+      - SE_NODE_SESSION_TIMEOUT=300
+      {% if values.headless %}
+      - START_XVFB=false
+      {% endif %}
+    shm_size: '2gb'
+    networks:
+      - selenium-grid
+{% endif %}
+
+{% if 'firefox' in values.browsers %}
+  # Firefox Node
+  firefox:
+    image: selenium/node-firefox:latest
+    container_name: selenium-firefox
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      - SE_NODE_MAX_SESSIONS=5
+      - SE_NODE_SESSION_TIMEOUT=300
+      {% if values.headless %}
+      - START_XVFB=false
+      {% endif %}
+    shm_size: '2gb'
+    networks:
+      - selenium-grid
+{% endif %}
+
+{% if 'edge' in values.browsers %}
+  # Edge Node
+  edge:
+    image: selenium/node-edge:latest
+    container_name: selenium-edge
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      - SE_NODE_MAX_SESSIONS=5
+      - SE_NODE_SESSION_TIMEOUT=300
+      {% if values.headless %}
+      - START_XVFB=false
+      {% endif %}
+    shm_size: '2gb'
+    networks:
+      - selenium-grid
+{% endif %}
+
+  {% if values.enableVideo %}
+  # Video Recording (optional)
+  video-recorder:
+    image: selenium/video:latest
+    container_name: selenium-video
+    depends_on:
+      - selenium-hub
+    volumes:
+      - ./test-results/videos:/videos
+    environment:
+      - DISPLAY_CONTAINER_NAME=chrome
+      - FILE_NAME=test-recording.mp4
+    networks:
+      - selenium-grid
+  {% endif %}
+
+networks:
+  selenium-grid:
+    driver: bridge
+
+volumes:
+  test-results:

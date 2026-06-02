@@ -1,0 +1,82 @@
+version: '3.8'
+
+# WebdriverIO Testing Service
+# Cross-platform compatible (Mac/Linux/Windows)
+
+services:
+  # WebdriverIO test runner
+  wdio-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: webdriverio-service:latest
+    container_name: wdio-tests
+    environment:
+      # Base configuration (can be overridden)
+      - BASE_URL=${BASE_URL:-http://host.docker.internal:3000}
+      - BROWSER=${BROWSER:-chrome}
+      - HEADLESS=${HEADLESS:-true}
+      - MAX_INSTANCES=${MAX_INSTANCES:-5}
+      - TEST_TIMEOUT=${TEST_TIMEOUT:-60000}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Timezone
+      - TZ=${TZ:-Europe/Paris}
+    volumes:
+      # Mount your test code
+      - ./examples/minimal-project/tests:/tests/tests:ro
+      # Mount configuration (optional override)
+      - ./examples/minimal-project/wdio-config:/tests/wdio-config:ro
+      # Mount results (read-write for test output)
+      - ./examples/minimal-project/test-results:/tests/test-results:rw
+      - ./examples/minimal-project/allure-results:/tests/allure-results:rw
+    # Network configuration for accessing host services
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Shared memory size (important for Chrome)
+    shm_size: '2gb'
+    # Security options
+    security_opt:
+      - seccomp:unconfined
+    # Resource limits (optional, adjust based on needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+  # Optional: Selenium Grid Hub (for distributed testing)
+  selenium-hub:
+    image: selenium/hub:latest
+    container_name: selenium-hub
+    ports:
+      - "4444:4444"
+      - "4442:4442"
+      - "4443:4443"
+    environment:
+      - GRID_MAX_SESSION=10
+      - GRID_BROWSER_TIMEOUT=300
+      - GRID_TIMEOUT=300
+    profiles:
+      - grid
+
+  # Optional: Chrome Node (when using Selenium Grid)
+  chrome-node:
+    image: selenium/node-chrome:latest
+    container_name: selenium-chrome
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      - SE_NODE_MAX_SESSIONS=5
+    shm_size: '2gb'
+    profiles:
+      - grid
+
+networks:
+  default:
+    name: wdio-network

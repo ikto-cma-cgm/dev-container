@@ -1,0 +1,379 @@
+name: Frontend CI/CD Pipeline
+
+on:
+  push:
+    branches: [ ${{ values.defaultBranch }} {% if values.defaultBranch != 'develop' %}, develop{% endif %} ]
+  pull_request:
+    branches: [ ${{ values.defaultBranch }} ]
+
+env:
+  NODE_VERSION: '${{ values.nodeVersion }}'
+  APP_NAME: '${{ values.appName }}'
+
+jobs:
+  # Lint, Test and Build
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: {% raw %}${{ env.NODE_VERSION }}{% endraw %}
+          cache: "{% raw %}${{ steps.check-lockfile.outputs.files_exists == 'true' && 'npm' || '' }}{% endraw %}"
+
+      - name: Check for lockfile
+        id: check-lockfile
+        uses: andstor/file-existence-action@v2
+        with:
+          files: "package-lock.json"
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      {%- if values.runLint %}
+
+      - name: Run linter
+        run: npm run lint
+      {%- endif %}
+
+      {%- if values.runTests %}
+
+      - name: Run tests
+        run: npm run test
+        env:
+          CI: true
+      {%- endif %}
+
+      - name: Build application
+        run: ${{ values.buildCommand }}
+        env:
+          CI: true
+          {%- if values.deploymentTarget == 'vercel' %}
+          NEXT_PUBLIC_API_URL: {% raw %}${{ secrets.NEXT_PUBLIC_API_URL }}{% endraw %}
+          {%- endif %}
+
+      {%- if values.enableBundleAnalysis %}
+
+      - name: Analyze bundle size
+        run: npx @next/bundle-analyzer || true
+        if: github.event_name == 'pull_request'
+      {%- endif %}
+
+  {%- if values.runE2ETests %}
+
+  # End-to-End Tests
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: {% raw %}${{ env.NODE_VERSION }}{% endraw %}
+          cache: "{% raw %}${{ steps.check-lockfile.outputs.files_exists == 'true' && 'npm' || '' }}{% endraw %}"
+
+      - name: Check for lockfile
+        id: check-lockfile
+        uses: andstor/file-existence-action@v2
+        with:
+          files: "package-lock.json"
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+  {%- endif %}
+
+  {%- if values.enableLighthouse %}
+
+  # Lighthouse Performance Audit
+  lighthouse:
+    name: Lighthouse CI
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: {% raw %}${{ env.NODE_VERSION }}{% endraw %}
+          cache: "{% raw %}${{ steps.check-lockfile.outputs.files_exists == 'true' && 'npm' || '' }}{% endraw %}"
+
+      - name: Check for lockfile
+        id: check-lockfile
+        uses: andstor/file-existence-action@v2
+        with:
+          files: "package-lock.json"
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Build application
+        run: ${{ values.buildCommand }}
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          urls: |
+            http://localhost:3000
+          uploadArtifacts: true
+  {%- endif %}
+
+  {%- if values.enableSecurityScan %}
+
+  # Security Scanning
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run security audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: {% raw %}${{ secrets.SNYK_TOKEN }}{% endraw %}
+  {%- endif %}
+
+  {%- if values.deploymentTarget == 'vercel' and values.enableAutoDeployment %}
+
+  # Deploy to Vercel
+  deploy:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/${{ values.defaultBranch }}'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel Production
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: {% raw %}${{ secrets.VERCEL_TOKEN }}{% endraw %}
+          vercel-org-id: {% raw %}${{ secrets.VERCEL_ORG_ID }}{% endraw %}
+          vercel-project-id: {% raw %}${{ secrets.VERCEL_PROJECT_ID }}{% endraw %}
+          vercel-args: '--prod'
+
+  {%- if values.enablePreviewDeployments %}
+
+  # Preview Deployment
+  preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel Preview
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: {% raw %}${{ secrets.VERCEL_TOKEN }}{% endraw %}
+          vercel-org-id: {% raw %}${{ secrets.VERCEL_ORG_ID }}{% endraw %}
+          vercel-project-id: {% raw %}${{ secrets.VERCEL_PROJECT_ID }}{% endraw %}
+
+  {%- endif %}
+  {%- elif values.deploymentTarget == 'netlify' and values.enableAutoDeployment %}
+
+  # Deploy to Netlify
+  deploy:
+    name: Deploy to Netlify
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/${{ values.defaultBranch }}'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Netlify
+        uses: nwtgck/actions-netlify@v2.1
+        with:
+          publish-dir: './out'
+          production-deploy: true
+          github-token: {% raw %}${{ secrets.GITHUB_TOKEN }}{% endraw %}
+          deploy-message: "Deploy from GitHub Actions"
+        env:
+          NETLIFY_AUTH_TOKEN: {% raw %}${{ secrets.NETLIFY_AUTH_TOKEN }}{% endraw %}
+          NETLIFY_SITE_ID: {% raw %}${{ secrets.NETLIFY_SITE_ID }}{% endraw %}
+
+  {%- elif values.deploymentTarget == 'cloudflare-pages' and values.enableAutoDeployment %}
+
+  # Deploy to Cloudflare Pages
+  deploy:
+    name: Deploy to Cloudflare Pages
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/${{ values.defaultBranch }}'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: {% raw %}${{ env.NODE_VERSION }}{% endraw %}
+          cache: "{% raw %}${{ steps.check-lockfile-cf.outputs.files_exists == 'true' && 'npm' || '' }}{% endraw %}"
+
+      - name: Check for lockfile
+        id: check-lockfile-cf
+        uses: andstor/file-existence-action@v2
+        with:
+          files: "package-lock.json"
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Build
+        run: ${{ values.buildCommand }}
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: {% raw %}${{ secrets.CLOUDFLARE_API_TOKEN }}{% endraw %}
+          accountId: {% raw %}${{ secrets.CLOUDFLARE_ACCOUNT_ID }}{% endraw %}
+          projectName: ${{ values.appName }}
+          directory: ./out
+          gitHubToken: {% raw %}${{ secrets.GITHUB_TOKEN }}{% endraw %}
+
+  {%- elif values.deploymentTarget == 'kubernetes' and values.enableAutoDeployment %}
+
+  # Build Docker and Deploy to Kubernetes
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/${{ values.defaultBranch }}'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: {% raw %}${{ secrets.REGISTRY_URL }}{% endraw %}
+          username: {% raw %}${{ secrets.REGISTRY_USERNAME }}{% endraw %}
+          password: {% raw %}${{ secrets.REGISTRY_PASSWORD }}{% endraw %}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            {% raw %}${{ secrets.REGISTRY_URL }}{% endraw %}/${{ values.appName }}:{% raw %}${{ github.sha }}{% endraw %}
+            {% raw %}${{ secrets.REGISTRY_URL }}{% endraw %}/${{ values.appName }}:latest
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: {% raw %}${{ secrets.KUBE_CONFIG }}{% endraw %}
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl set image deployment/${{ values.appName }} \
+            ${{ values.appName }}={% raw %}${{ secrets.REGISTRY_URL }}{% endraw %}/${{ values.appName }}:{% raw %}${{ github.sha }}{% endraw %} \
+            --namespace={% raw %}${{ secrets.K8S_NAMESPACE }}{% endraw %}
+
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/${{ values.appName }} \
+            --namespace={% raw %}${{ secrets.K8S_NAMESPACE }}{% endraw %} \
+            --timeout=5m
+
+  {%- elif values.enableDocker %}
+
+  # Build and Push Docker Image
+  docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/${{ values.defaultBranch }}'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: {% raw %}${{ secrets.REGISTRY_URL }}{% endraw %}
+          username: {% raw %}${{ secrets.REGISTRY_USERNAME }}{% endraw %}
+          password: {% raw %}${{ secrets.REGISTRY_PASSWORD }}{% endraw %}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            {% raw %}${{ secrets.REGISTRY_URL }}{% endraw %}/${{ values.appName }}:{% raw %}${{ github.sha }}{% endraw %}
+            {% raw %}${{ secrets.REGISTRY_URL }}{% endraw %}/${{ values.appName }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  {%- endif %}

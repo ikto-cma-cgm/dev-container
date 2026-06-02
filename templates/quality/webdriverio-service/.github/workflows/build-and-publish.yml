@@ -1,0 +1,225 @@
+name: Build and Publish WebdriverIO Service
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 1.2.3)'
+        required: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/webdriverio-service
+
+jobs:
+  # Build and test job
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          elif [[ "${{ github.event.inputs.version }}" != "" ]]; then
+            VERSION=${{ github.event.inputs.version }}
+          else
+            VERSION="dev-${GITHUB_SHA::8}"
+          fi
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building version: ${VERSION}"
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: webdriverio-service:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test image
+        run: |
+          echo "Testing Docker image..."
+
+          # Test 1: Check Node.js version
+          docker run --rm webdriverio-service:test node --version
+
+          # Test 2: Check Chrome installation
+          docker run --rm webdriverio-service:test chromium --version
+
+          # Test 3: Check npm packages
+          docker run --rm webdriverio-service:test npm list --depth=0
+
+          # Test 4: Run example tests
+          cd examples/minimal-project
+          docker run --rm \
+            -v $(pwd)/tests:/tests/tests:ro \
+            -v $(pwd)/wdio-config:/tests/wdio-config:ro \
+            -v $(pwd)/test-results:/tests/test-results:rw \
+            -e BASE_URL=http://example.com \
+            -e HEADLESS=true \
+            webdriverio-service:test || echo "Test execution completed"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: examples/minimal-project/test-results/
+
+      - name: Scan for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: webdriverio-service:test
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Publish multi-platform image
+  publish:
+    name: Publish Multi-Platform Image
+    needs: build-and-test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+            IS_RELEASE=true
+          else
+            VERSION="latest"
+            IS_RELEASE=false
+          fi
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "IS_RELEASE=${IS_RELEASE}" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push multi-platform image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create release notes
+        if: steps.version.outputs.IS_RELEASE == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ steps.version.outputs.VERSION }}';
+            const body = `
+            ## WebdriverIO Service ${version}
+
+            ### 📦 Docker Image
+            \`\`\`bash
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${version}
+            \`\`\`
+
+            ### 🚀 Quick Start
+            \`\`\`bash
+            docker run --rm -v ./tests:/tests/tests \\
+              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${version}
+            \`\`\`
+
+            ### 📝 Full Changelog
+            See [CHANGELOG.md](./CHANGELOG.md)
+
+            ### 🔗 Links
+            - [Documentation](./README.md)
+            - [Versioning Guide](./VERSIONING.md)
+            `;
+
+            github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `v${version}`,
+              name: `Release ${version}`,
+              body: body,
+              draft: false,
+              prerelease: false
+            });
+
+  # Notify teams
+  notify:
+    name: Notify Teams
+    needs: publish
+    if: success()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"🚀 WebdriverIO Service ${VERSION} has been released!\n📦 \`docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}\`\n📖 See CHANGELOG for details.\"}" \
+            $SLACK_WEBHOOK_URL

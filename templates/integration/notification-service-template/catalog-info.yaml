@@ -1,0 +1,18 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: notification-service-template
+  title: Notification Service Template
+  description: Template pour créer des services qui envoient des notifications au Chatbot
+  tags:
+    - integration
+    - notification
+    - template
+    - chatbot
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+spec:
+  type: template
+  lifecycle: production
+  owner: integration-team
+  system: platform

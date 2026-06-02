@@ -1,0 +1,29 @@
+# JMeter Results
+results/
+*.jtl
+*.log
+jmeter.log
+
+# JMeter Reports
+reports/
+
+# Test Data (generated)
+test-data/*.gen.*
+
+# Docker volumes
+influxdb-data/
+grafana-data/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.bak

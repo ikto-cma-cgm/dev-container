@@ -1,0 +1,173 @@
+# WebDriverIO E2E Tests - Reusable Workflow
+# This workflow is designed to be called from a main CI/CD pipeline
+# It expects the webdriver-io/ directory to exist in the repository
+
+name: WebDriverIO E2E Tests
+
+on:
+  workflow_call:
+    inputs:
+      base_url:
+        description: 'Base URL of the application to test'
+        required: false
+        type: string
+        default: 'http://localhost:3000'
+      working_directory:
+        description: 'Path to webdriver-io directory'
+        required: false
+        type: string
+        default: 'webdriver-io'
+      execution_mode:
+        description: 'Execution mode: docker, local, or cloud'
+        required: false
+        type: string
+        default: 'docker'
+      browsers:
+        description: 'Browsers to test (JSON array)'
+        required: false
+        type: string
+        default: '["chrome"]'
+      max_instances:
+        description: 'Maximum parallel test instances'
+        required: false
+        type: number
+        default: 5
+      upload_artifacts:
+        description: 'Upload test artifacts (screenshots, reports)'
+        required: false
+        type: boolean
+        default: true
+      fail_on_error:
+        description: 'Fail the workflow if tests fail'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      BROWSERSTACK_USERNAME:
+        required: false
+      BROWSERSTACK_ACCESS_KEY:
+        required: false
+    outputs:
+      test_result:
+        description: 'Test execution result (success/failure)'
+        value: ${{ jobs.e2e-tests.outputs.result }}
+      report_url:
+        description: 'URL to test report (if available)'
+        value: ${{ jobs.e2e-tests.outputs.report_url }}
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  e2e-tests:
+    name: E2E Tests (${{ inputs.execution_mode }})
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.run-tests.outcome }}
+      report_url: ${{ steps.upload-report.outputs.artifact-url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify WebDriverIO setup exists
+        run: |
+          if [ ! -d "${{ inputs.working_directory }}" ]; then
+            echo "::error::WebDriverIO directory not found at ${{ inputs.working_directory }}"
+            echo "Please ensure the WebDriverIO template has been applied to this repository."
+            exit 1
+          fi
+          echo "WebDriverIO setup found at ${{ inputs.working_directory }}"
+
+      # Docker execution mode
+      - name: Run E2E Tests (Docker)
+        id: run-tests
+        if: inputs.execution_mode == 'docker'
+        working-directory: ${{ inputs.working_directory }}
+        run: |
+          echo "Running E2E tests in Docker mode..."
+          docker-compose up --build --abort-on-container-exit --exit-code-from wdio-tests
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          MAX_INSTANCES: ${{ inputs.max_instances }}
+        continue-on-error: ${{ !inputs.fail_on_error }}
+
+      # Local execution mode
+      - name: Setup Node.js
+        if: inputs.execution_mode == 'local' || inputs.execution_mode == 'cloud'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ inputs.working_directory }}/package-lock.json
+
+      - name: Install dependencies
+        if: inputs.execution_mode == 'local' || inputs.execution_mode == 'cloud'
+        working-directory: ${{ inputs.working_directory }}
+        run: npm ci
+
+      - name: Run E2E Tests (Local)
+        if: inputs.execution_mode == 'local'
+        working-directory: ${{ inputs.working_directory }}
+        run: npm run test:e2e
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          MAX_INSTANCES: ${{ inputs.max_instances }}
+          HEADLESS: 'true'
+        continue-on-error: ${{ !inputs.fail_on_error }}
+
+      # Cloud execution mode (BrowserStack/SauceLabs)
+      - name: Run E2E Tests (Cloud)
+        if: inputs.execution_mode == 'cloud'
+        working-directory: ${{ inputs.working_directory }}
+        run: npm run test:e2e:cloud
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          MAX_INSTANCES: ${{ inputs.max_instances }}
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        continue-on-error: ${{ !inputs.fail_on_error }}
+
+      # Artifact collection
+      - name: Upload Screenshots
+        if: always() && inputs.upload_artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots-${{ github.run_id }}
+          path: ${{ inputs.working_directory }}/test-results/screenshots/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload Allure Results
+        id: upload-report
+        if: always() && inputs.upload_artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-allure-results-${{ github.run_id }}
+          path: ${{ inputs.working_directory }}/allure-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload JUnit Results
+        if: always() && inputs.upload_artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-junit-results-${{ github.run_id }}
+          path: ${{ inputs.working_directory }}/test-results/*.xml
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # Cleanup
+      - name: Cleanup Docker
+        if: always() && inputs.execution_mode == 'docker'
+        working-directory: ${{ inputs.working_directory }}
+        run: docker-compose down -v || true
+
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "## E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Execution Mode**: ${{ inputs.execution_mode }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Base URL**: ${{ inputs.base_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Result**: ${{ steps.run-tests.outcome }}" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,26 @@
+# JMeter Results
+results/
+*.jtl
+*.log
+jmeter.log
+
+# JMeter Reports
+reports/
+
+# Environment
+.env
+
+# Docker
+docker-compose.override.yml
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Temporary
+*.tmp
+*.bak

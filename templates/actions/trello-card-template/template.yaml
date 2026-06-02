@@ -1,0 +1,57 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: create-trello-card
+  title: Créer une carte Trello
+  description: Crée une carte dans un tableau Trello existant
+  tags:
+    - action
+    - trello
+spec:
+  type: action
+  owner: team-platform
+
+  parameters:
+    - title: Carte Trello
+      required:
+        - cardName
+        - idList
+      properties:
+        cardName:
+          title: Titre de la carte
+          type: string
+          description: Nom de la carte qui apparaîtra dans Trello
+        cardDescription:
+          title: Description
+          type: string
+          description: Corps de la carte (optionnel)
+          ui:widget: textarea
+        idList:
+          title: ID de la liste Trello
+          type: string
+          description: >
+            Identifiant de la liste cible. Récupérable via
+            https://trello.com/b/<board-id>.json ou l'API Trello.
+        dueDate:
+          title: Date d'échéance
+          type: string
+          format: date
+          description: Date d'échéance au format YYYY-MM-DD (optionnel)
+
+  steps:
+    - id: create-card
+      name: Créer la carte Trello
+      action: trello:card:create
+      input:
+        name: ${{ parameters.cardName }}
+        desc: ${{ parameters.cardDescription }}
+        idList: ${{ parameters.idList }}
+        due: ${{ parameters.dueDate }}
+
+  output:
+    links:
+      - title: Voir la carte sur Trello
+        url: ${{ steps['create-card'].output.cardUrl }}
+    text:
+      - title: ID de la carte
+        content: ${{ steps['create-card'].output.cardId }}
