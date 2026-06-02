@@ -511,7 +511,16 @@ git push -u origin main
 ```
 
 After push, report: "Template published at: https://github.com/<org>/<template-name>
-This URL is required for EUP registration. The local Backstage instance will detect the template via the dev container in approximately 2 minutes."
+This URL is what you submit for registration. The local Backstage instance will detect the template via the dev container in approximately 2 minutes.
+
+> TARGET (proposed, not yet effective) — see ADR-0002 / SMT-178:
+> submission becomes self-service. In Backstage: Actions -> Submit a Software Template
+> -> paste this URL. It re-runs the linter as a gate and, on a green gate, registers
+> the template in the UAT template catalogue automatically, with no EUP ticket.
+> Until that Submit action is live, the current process still applies: raise an EUP
+> request to the Developer Portal Team with this URL.
+>
+> Repository host: GitHub today; GitLab CMA is the target."
 
 ---
 
