@@ -1,6 +1,16 @@
 #!/bin/bash
 set -e
 
+# Authentifie gh avec GH_TOKEN depuis .env si disponible
+if [ -f ".env" ]; then
+  GH_TOKEN_VAL=$(grep -E '^GH_TOKEN=' .env | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+  if [ -n "$GH_TOKEN_VAL" ]; then
+    echo "$GH_TOKEN_VAL" | gh auth login --with-token 2>/dev/null \
+      && echo "✅ gh authentifié avec GH_TOKEN" \
+      || echo "⚠️  gh auth login échoué (token invalide ?)"
+  fi
+fi
+
 # Lit le .env et génère ~/.config/opencode/opencode.json
 # opencode lit ce fichier automatiquement à chaque lancement — aucune config manuelle nécessaire.
 node -e '

@@ -23,6 +23,10 @@
       "extensions": [
         // Assistant IA intégré — se connecte au modèle configuré dans .env
         "sst-dev.opencode",
+        // GitHub Copilot — autocompletion IA dans l'éditeur (nécessite un compte GitHub avec Copilot actif)
+        "GitHub.copilot",
+        // GitHub Copilot Chat — interface de chat IA dans VS Code
+        "GitHub.copilot-chat",
         // Validation YAML avec schémas JSON Schema (erreurs inline)
         "redhat.vscode-yaml",
         // Linter OpenAPI/Spectral — applique le ruleset HIP en temps réel pendant l'édition
@@ -36,7 +40,11 @@
         // => VS Code valide la structure et propose de l'autocompletion.
         "yaml.schemas": {
           "https://json.schemastore.org/catalog-info.json": "**/catalog-info.yaml"
-        }
+        },
+        // Active les custom chat modes (.github/chat/*.chatmode.md) dans Copilot Chat.
+        // Permet d'utiliser les agents spécialisés (api-designer, backstage-creator, etc.)
+        // via le sélecteur de mode dans le panneau Copilot Chat.
+        "chat.experimental.chatModeFiles": true
       }
     }
   },
@@ -45,9 +53,15 @@
     "source=${localWorkspaceFolder}/../catalogs,target=${containerWorkspaceFolder}/catalogs,type=bind,consistency=cached",
     "source=${localWorkspaceFolder}/../templates,target=${containerWorkspaceFolder}/templates,type=bind,consistency=cached"
   ],
+  // Docker charge le .env directement dans l'environnement du container au démarrage.
+  // GH_TOKEN devient ainsi une variable d'environnement container, sans dépendre du shell Mac.
+  "runArgs": ["--env-file", "${localWorkspaceFolder}/.env"],
+  // GITHUB_TOKEN = GH_TOKEN du container → lu par VS Code GitHub Auth Provider.
+  // L'extension Copilot s'authentifie automatiquement avec ce compte, sans popup OAuth.
+  "remoteEnv": {
+    "GITHUB_TOKEN": "${containerEnv:GH_TOKEN}"
+  },
   // Ports du container exposés sur ta machine hôte.
-  // Si tu lances une app Backstage locale pour tester un template,
-  // tu pourras y accéder via http://localhost:3000 et http://localhost:7007.
   "forwardPorts": [
     3000,
     7007
