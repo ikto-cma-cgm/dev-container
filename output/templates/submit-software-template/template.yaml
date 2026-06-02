@@ -1,0 +1,55 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: submit-software-template
+  title: Submit a Software Template
+  description: "Self-service submission: validate a template repository against the standards, then register it in the UAT catalogue on a green gate. Stub for DevFactory to implement (see README and ADR-0002)."
+  tags:
+    - action
+    - governance
+spec:
+  owner: group:default/it-development-software-engineering-developer-platform
+  type: action
+
+  parameters:
+    - title: Template to submit
+      required:
+        - templateRepoUrl
+      properties:
+        templateRepoUrl:
+          title: Template repository URL
+          type: string
+          description: URL of the repository that holds the template.yaml and its skeleton.
+          ui:help: The repository of the software template you want to submit.
+
+  steps:
+    # Step 1 — Validate (gate). Reuses the standards linter (dev-container/scripts).
+    # TODO (DevFactory): implement the action cma:template:validate to pull the repo,
+    # run the linter (lint-templates.mjs: R01-R19 + C01-C05 + ADR-R1/R3), and FAIL on
+    # any error so Step 2 does not run.
+    - id: validate-template
+      name: Validate against the standards (linter gate)
+      action: cma:template:validate
+      input:
+        repoUrl: ${{ parameters.templateRepoUrl }}
+
+    # Step 2 — Register in UAT (runs only if Step 1 passed).
+    # TODO (DevFactory): implement the action cma:template:register-uat to register the
+    # template location in the UAT template catalogue (UAT Backstage host, GitLab).
+    # The UAT catalogue URL is to be provided by DevFactory.
+    - id: register-uat
+      name: Register in the UAT template catalogue
+      action: cma:template:register-uat
+      input:
+        repoUrl: ${{ parameters.templateRepoUrl }}
+        # uatCatalogUrl: <TODO DevFactory: UAT GitLab template-catalogue URL>
+
+  output:
+    text:
+      - title: Result
+        content: |
+          Template validated and submitted to UAT (stub).
+          Validation report: ${{ steps['validate-template'].output.reportUrl }}
+    links:
+      - title: Submitted template repository
+        url: ${{ parameters.templateRepoUrl }}
