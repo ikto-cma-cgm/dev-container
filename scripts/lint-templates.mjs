@@ -32,7 +32,6 @@ const SKELETON_DIR_PATTERNS = config.skeleton.directoryPatterns || ['skeleton'];
 
 const COMPOSABLE = config.composable || {};
 const VALID_LIFECYCLES = COMPOSABLE.validLifecycles || ['experimental', 'production', 'deprecated'];
-const FORBIDDEN_FETCH_REFS = COMPOSABLE.forbiddenFetchRefs || ['master', 'main'];
 const SEMVER_TAG_PATTERN = COMPOSABLE.semverTagPattern || 'v\\d+\\.\\d+\\.\\d+';
 const DEPENDS_ON_ALLOWLIST = COMPOSABLE.dependsOnAllowlist || [];
 
@@ -305,17 +304,7 @@ function stripQuotes(s) {
   return String(s).trim().replace(/^['"]|['"]$/g, '');
 }
 
-// All catalog-info.yaml contents found in this template's skeleton dirs.
-function skeletonCatalogContents(dir) {
-  const out = [];
-  for (const s of findSkeletonDirs(dir)) {
-    const p = join(s.path, 'catalog-info.yaml');
-    if (existsSync(p)) out.push({ name: s.name, content: readFileSync(p, 'utf8') });
-  }
-  return out;
-}
-
-// Every catalog-info.yaml under the template tree (recursive). Used by C04 so a
+// Every catalog-info.yaml under the template tree (recursive). Used by C03/C04 so a
 // dependsOn target produced in a non-skeleton output dir (e.g. deployment_skeleton/)
 // is recognised, not mis-flagged as phantom.
 function allCatalogContents(dir) {
@@ -362,9 +351,11 @@ function extractDependsOn(content) {
     if (!inBlock) continue;
     if (/^\s*\{%/.test(line) || line.trim() === '') continue; // Jinja control / blank: stay in block
     const item = line.match(/^(\s*)-\s*(.+?)\s*$/);
-    if (item && item[1].length > blockIndent) { refs.push(item[2].trim()); continue; }
+    // A block-sequence item may sit at the SAME indent as the `dependsOn:` key
+    // (valid YAML), so accept items at >= blockIndent.
+    if (item && item[1].length >= blockIndent) { refs.push(item[2].trim()); continue; }
     const indented = line.match(/^(\s*)\S/);
-    if (indented && indented[1].length <= blockIndent) inBlock = false; // dedent ends the block
+    if (indented && indented[1].length <= blockIndent) inBlock = false; // dedent to a sibling key ends the block
   }
   return refs;
 }
@@ -403,7 +394,24 @@ function c01_semver_tag(_data, dir) {
   return { status: 'PASS' };
 }
 
-// C02 — every remote fetch:template must be pinned to a non-moving ref.
+// An immutable ref is a SemVer tag or a commit SHA. Anything else (a branch
+// name like master/main/develop, a moving alias) is not a valid pin.
+function isImmutableRef(ref) {
+  if (new RegExp(`^${SEMVER_TAG_PATTERN}$`).test(ref)) return true; // SemVer tag, e.g. v1.2.3
+  if (/^[0-9a-f]{7,40}$/i.test(ref)) return true;                  // commit SHA
+  return false;
+}
+
+// Locate a ref in a remote git URL: ?ref=, /tree/<ref>, /-/archive|raw/<ref>.
+// Stops at /, ?, # and & so a fragment or query tail never leaks into the ref.
+function fetchUrlRef(url) {
+  const m = url.match(/[?&]ref=([^&#]+)/)
+    || url.match(/\/tree\/([^/?#]+)/)
+    || url.match(/\/(?:-\/)?(?:archive|raw)\/([^/?#]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+// C02 — every remote fetch:template must be pinned to an immutable ref.
 function c02_pinned_fetch(data) {
   const steps = data?.spec?.steps || [];
   const offenders = [];
@@ -411,12 +419,10 @@ function c02_pinned_fetch(data) {
     if (step.action !== 'fetch:template') continue;
     const url = step?.input?.url;
     if (typeof url !== 'string' || !/^https?:\/\//.test(url)) continue; // local (./...) = OK
-    const refMatch = url.match(/[?&]ref=([^&]+)/);
-    const treeMatch = url.match(/\/tree\/([^/]+)\//);
-    const ref = refMatch ? refMatch[1] : (treeMatch ? treeMatch[1] : null);
     const id = step.id || '(step)';
+    const ref = fetchUrlRef(url);
     if (!ref) offenders.push(`${id}: unpinned remote fetch (${url})`);
-    else if (FORBIDDEN_FETCH_REFS.includes(ref)) offenders.push(`${id}: pinned to moving branch "${ref}"`);
+    else if (!isImmutableRef(ref)) offenders.push(`${id}: not pinned to an immutable ref ("${ref}"; use a SemVer tag or commit SHA)`);
   }
   if (offenders.length > 0) return { status: 'FAIL', detail: offenders.join('; ') };
   return { status: 'PASS' };
@@ -424,8 +430,8 @@ function c02_pinned_fetch(data) {
 
 // C03 — every spec.lifecycle on a produced entity must be a valid Backstage value.
 function c03_valid_lifecycle(_data, dir) {
-  const catalogs = skeletonCatalogContents(dir);
-  if (catalogs.length === 0) return { status: 'SKIP', detail: 'no skeleton catalog-info.yaml' };
+  const catalogs = allCatalogContents(dir);
+  if (catalogs.length === 0) return { status: 'SKIP', detail: 'no catalog-info.yaml' };
   const issues = [];
   for (const c of catalogs) {
     for (const m of c.content.matchAll(/lifecycle:\s*(\S+)/g)) {
@@ -445,12 +451,13 @@ function c04_resolvable_dependson(_data, dir) {
   for (const c of catalogs) {
     for (const m of c.content.matchAll(/^\s*name:\s*(.+?)\s*$/gm)) defined.add(normalizeRef(m[1]));
   }
+  const allow = new Set(DEPENDS_ON_ALLOWLIST.map(a => normalizeRef(bareRef(a))));
   const phantoms = [];
   for (const c of catalogs) {
     for (const ref of extractDependsOn(c.content)) {
       const bare = bareRef(ref);
       const norm = normalizeRef(bare);
-      if (defined.has(norm) || DEPENDS_ON_ALLOWLIST.includes(bare) || DEPENDS_ON_ALLOWLIST.includes(ref)) continue;
+      if (defined.has(norm) || allow.has(norm)) continue;
       phantoms.push(bare);
     }
   }

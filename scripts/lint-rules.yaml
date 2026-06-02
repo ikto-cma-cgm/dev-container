@@ -100,14 +100,10 @@ composable:
     - production
     - deprecated
 
-  # C02 — a remote fetch:template must be pinned. These refs are moving branches,
-  # never an acceptable pin for a composed brick.
-  forbiddenFetchRefs:
-    - master
-    - main
-
-  # C01 — SemVer git tag convention. Tag form: '<template-name>/vX.Y.Z' (monorepo)
-  # or a bare 'vX.Y.Z'. This regex matches the version portion.
+  # C01/C02 — SemVer version pattern. C01 tag form: '<template-name>/vX.Y.Z'
+  # (monorepo) or a bare 'vX.Y.Z'. C02 accepts a remote fetch:template only when
+  # pinned to a ref matching this pattern (a SemVer tag) or a commit SHA; any
+  # branch name (master/main/develop/...) is rejected as a moving ref.
   semverTagPattern: 'v\d+\.\d+\.\d+'
 
   # C04 — dependsOn references allowed even when not produced by this template
