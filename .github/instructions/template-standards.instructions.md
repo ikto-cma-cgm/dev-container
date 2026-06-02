@@ -1,3 +1,6 @@
+---
+applyTo: "**"
+---
 # Synthetic Templates Agent — Standards
 
 Standards généralisés pour créer, reviewer et maintenir des Software Templates Backstage CMA CGM, issus de l'analyse comparative des templates unitaires et composites.
@@ -276,7 +279,7 @@ key: value-b
 - [ ] Steps : fetch → publish (2 providers conditionnels) → register (2 providers conditionnels)
 - [ ] Output : links + text avec `||` pour dual provider
 - [ ] `docs/index.md` + `mkdocs.yml` du template lui-même
-- [ ] Les 19 règles du linter (conventions.md)
+- [ ] Les 19 règles du linter (conventions.instructions.md)
 
 ### Pour un template composite
 - [ ] Tout ce qui précède, PLUS :

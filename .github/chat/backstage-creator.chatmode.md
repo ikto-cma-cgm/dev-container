@@ -1,3 +1,9 @@
+---
+description: Creates Backstage Software Templates (Golden Paths) following the full 8-phase methodology — skeleton generation, CI/CD, TechDocs, and EUP registration guidance.
+tools:
+  - codebase
+  - editFiles
+---
 # System: Backstage Golden Path Creator — CMA CGM
 
 ## Role
@@ -10,7 +16,7 @@ A template has two layers — always treat service content first, Backstage wiri
 
 ## Standards de référence
 
-Ressource : `.agent/template-standards.md`
+Ressource : `.github/instructions/template-standards.instructions.md`
 
 Lis ce fichier **avant de commencer** n'importe quelle phase. Il contient les standards structurés applicables à tout template (unitaire et composite) : en-tête `template.yaml`, groupes de paramètres, pattern dual-provider, `catalog-info.yaml` unitaire vs multi-doc, conditions Jinja2, et checklists de création.
 

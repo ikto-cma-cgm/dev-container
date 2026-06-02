@@ -1,3 +1,6 @@
+---
+applyTo: "**"
+---
 # CMA CGM Backstage Template — Conventions & Standards
 
 Référence complète pour créer et valider des Software Templates (Golden Paths) sur le Developer Portal CMA CGM. Toute modification doit passer les 19 règles du linter **et** respecter les standards de compliance du Catalog.
