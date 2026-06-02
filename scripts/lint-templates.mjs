@@ -315,6 +315,32 @@ function skeletonCatalogContents(dir) {
   return out;
 }
 
+// Every catalog-info.yaml under the template tree (recursive). Used by C04 so a
+// dependsOn target produced in a non-skeleton output dir (e.g. deployment_skeleton/)
+// is recognised, not mis-flagged as phantom.
+function allCatalogContents(dir) {
+  const out = [];
+  (function walk(d) {
+    let entries;
+    try { entries = readdirSync(d); } catch { return; }
+    for (const e of entries) {
+      const p = join(d, e);
+      let st;
+      try { st = statSync(p); } catch { continue; }
+      if (st.isDirectory()) walk(p);
+      else if (e === 'catalog-info.yaml') out.push({ name: relative(dir, p), content: readFileSync(p, 'utf8') });
+    }
+  })(dir);
+  return out;
+}
+
+// Collapse ${{ ... }} template expressions to a stable placeholder so that
+// '${{values.artifact_id}}_deployment' and '${{values.project_name}}_deployment'
+// compare equal (same produced entity, different parameter name upstream).
+function normalizeRef(s) {
+  return stripQuotes(s).replace(/\$\{\{[^}]*\}\}/g, '␟');
+}
+
 // Extract dependsOn entity references from a catalog-info, tolerating Jinja.
 function extractDependsOn(content) {
   const lines = content.split('\n');
@@ -351,8 +377,9 @@ function bareRef(ref) {
 
 // C01 — skeleton/orchestrator must be published under a SemVer git tag.
 function c01_semver_tag(_data, dir) {
-  let tags;
+  let toplevel, tags;
   try {
+    toplevel = execSync('git rev-parse --show-toplevel', { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     tags = execSync('git tag --list', { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
       .split('\n').map(t => t.trim()).filter(Boolean);
   } catch {
@@ -360,12 +387,19 @@ function c01_semver_tag(_data, dir) {
   }
   const name = basename(dir);
   const semver = new RegExp(`^${SEMVER_TAG_PATTERN}$`);
+  // A bare 'vX.Y.Z' tag only counts when the template IS the repo root (single-
+  // template repo). In a monorepo, a global bare tag must not satisfy every
+  // template, so require the per-template '<name>/vX.Y.Z' form.
+  const isRepoRoot = relative(toplevel, dir) === '';
   const match = tags.some(t => {
-    if (semver.test(t)) return true;                         // bare 'vX.Y.Z'
+    if (isRepoRoot && semver.test(t)) return true;
     const idx = t.lastIndexOf('/');
-    return idx !== -1 && t.slice(0, idx) === name && semver.test(t.slice(idx + 1)); // '<name>/vX.Y.Z'
+    return idx !== -1 && t.slice(0, idx) === name && semver.test(t.slice(idx + 1));
   });
-  if (!match) return { status: 'FAIL', detail: `no SemVer tag (expected "${name}/vX.Y.Z" or "vX.Y.Z"); ${tags.length} tag(s) in repo` };
+  if (!match) {
+    const expected = isRepoRoot ? `"${name}/vX.Y.Z" or "vX.Y.Z"` : `"${name}/vX.Y.Z"`;
+    return { status: 'FAIL', detail: `no SemVer tag (expected ${expected}); ${tags.length} tag(s) in repo` };
+  }
   return { status: 'PASS' };
 }
 
@@ -405,17 +439,18 @@ function c03_valid_lifecycle(_data, dir) {
 
 // C04 — every dependsOn reference must resolve to a produced entity or an allowlisted brick.
 function c04_resolvable_dependson(_data, dir) {
-  const catalogs = skeletonCatalogContents(dir);
-  if (catalogs.length === 0) return { status: 'SKIP', detail: 'no skeleton catalog-info.yaml' };
+  const catalogs = allCatalogContents(dir);
+  if (catalogs.length === 0) return { status: 'SKIP', detail: 'no catalog-info.yaml' };
   const defined = new Set();
   for (const c of catalogs) {
-    for (const m of c.content.matchAll(/^\s*name:\s*(.+?)\s*$/gm)) defined.add(stripQuotes(m[1]));
+    for (const m of c.content.matchAll(/^\s*name:\s*(.+?)\s*$/gm)) defined.add(normalizeRef(m[1]));
   }
   const phantoms = [];
   for (const c of catalogs) {
     for (const ref of extractDependsOn(c.content)) {
       const bare = bareRef(ref);
-      if (defined.has(bare) || DEPENDS_ON_ALLOWLIST.includes(bare) || DEPENDS_ON_ALLOWLIST.includes(ref)) continue;
+      const norm = normalizeRef(bare);
+      if (defined.has(norm) || DEPENDS_ON_ALLOWLIST.includes(bare) || DEPENDS_ON_ALLOWLIST.includes(ref)) continue;
       phantoms.push(bare);
     }
   }
