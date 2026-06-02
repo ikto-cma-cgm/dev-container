@@ -366,8 +366,8 @@ function bareRef(ref) {
   return stripQuotes(v);
 }
 
-// C01 — skeleton/orchestrator must be published under a SemVer git tag.
-function c01_semver_tag(_data, dir) {
+// ADR-0001 R1 — the orchestrator/skeleton must be published under a SemVer git tag.
+function adr_r1_semver_tag(_data, dir) {
   let toplevel, tags;
   try {
     toplevel = execSync('git rev-parse --show-toplevel', { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
@@ -411,25 +411,114 @@ function fetchUrlRef(url) {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
-// C02 — every remote fetch:template must be pinned to an immutable ref.
-function c02_pinned_fetch(data) {
-  const steps = data?.spec?.steps || [];
-  const offenders = [];
-  for (const step of steps) {
-    if (step.action !== 'fetch:template') continue;
-    const url = step?.input?.url;
-    if (typeof url !== 'string' || !/^https?:\/\//.test(url)) continue; // local (./...) = OK
-    const id = step.id || '(step)';
-    const ref = fetchUrlRef(url);
-    if (!ref) offenders.push(`${id}: unpinned remote fetch (${url})`);
-    else if (!isImmutableRef(ref)) offenders.push(`${id}: not pinned to an immutable ref ("${ref}"; use a SemVer tag or commit SHA)`);
-  }
-  if (offenders.length > 0) return { status: 'FAIL', detail: offenders.join('; ') };
-  return { status: 'PASS' };
+// ─── Composable detection ────────────────────────────────────────────────────
+// A template is a composable orchestrator when it assembles 2+ skeletons: either
+// 2+ fetch:template steps, or a pre-assembled 'skeleton-*' layout (Option C). The
+// C01-C05 rules only apply to composable templates; unitary templates SKIP them.
+function fetchSteps(data) {
+  return (data?.spec?.steps || []).filter(s => s.action === 'fetch:template');
+}
+function isComposable(data, dir) {
+  if (fetchSteps(data).length >= 2) return true;
+  return findSkeletonDirs(dir).some(s => s.name !== 'skeleton'); // 'skeleton-*' = Option C
 }
 
-// C03 — every spec.lifecycle on a produced entity must be a valid Backstage value.
-function c03_valid_lifecycle(_data, dir) {
+// Split a (possibly multi-document, Jinja-laced) catalog-info into the fields the
+// composable rules need. Text-based so it tolerates Jinja control blocks.
+function parseCatalogDocs(content) {
+  return content.split(/^---\s*$/m).map(chunk => ({
+    kind: stripQuotes((chunk.match(/^\s*kind:\s*(\S+)/m) || [])[1] || ''),
+    name: stripQuotes((chunk.match(/^\s*name:\s*(.+?)\s*$/m) || [])[1] || ''),
+    system: stripQuotes((chunk.match(/^\s*system:\s*(.+?)\s*$/m) || [])[1] || ''),
+    hasOwner: /^\s*owner:\s*\S/m.test(chunk),
+    hasDomain: /^\s*domain:\s*\S/m.test(chunk),
+    hasDescription: /^\s*description:\s*\S/m.test(chunk),
+    hasDependsOn: /^\s*dependsOn:/m.test(chunk),
+  })).filter(d => d.kind);
+}
+function allDocs(dir) {
+  return allCatalogContents(dir).flatMap(c => parseCatalogDocs(c.content));
+}
+
+const NOT_COMPOSABLE = { status: 'SKIP', detail: 'not a composable orchestrator (single skeleton)' };
+
+// C01 — every REMOTE fetch:template is pinned to an immutable ref (SemVer tag or SHA).
+// Local (vendored) fetches are N/A — the Option C pre-assembled case.
+function c01_pinned_refs(data, dir) {
+  if (!isComposable(data, dir)) return NOT_COMPOSABLE;
+  const remote = fetchSteps(data).filter(s => typeof s?.input?.url === 'string' && /^https?:\/\//.test(s.input.url));
+  if (remote.length === 0) return { status: 'PASS', detail: 'no remote skeleton fetch (Option C / vendored)' };
+  const offenders = [];
+  for (const s of remote) {
+    const ref = fetchUrlRef(s.input.url);
+    const id = s.id || '(step)';
+    if (!ref) offenders.push(`${id}: unpinned remote fetch`);
+    else if (!isImmutableRef(ref)) offenders.push(`${id}: moving ref "${ref}" (use a SemVer tag or commit SHA)`);
+  }
+  return offenders.length ? { status: 'FAIL', detail: offenders.join('; ') } : { status: 'PASS' };
+}
+
+// C02 — the orchestrator output declares a kind: System with name/description/owner/domain.
+function c02_system_entry(data, dir) {
+  if (!isComposable(data, dir)) return NOT_COMPOSABLE;
+  const sys = allDocs(dir).find(d => d.kind === 'System');
+  if (!sys) return { status: 'FAIL', detail: 'no kind: System entry produced' };
+  const missing = [];
+  if (!sys.name) missing.push('metadata.name');
+  if (!sys.hasDescription) missing.push('metadata.description');
+  if (!sys.hasOwner) missing.push('spec.owner');
+  if (!sys.hasDomain) missing.push('spec.domain');
+  return missing.length ? { status: 'FAIL', detail: `System missing ${missing.join(', ')}` } : { status: 'PASS' };
+}
+
+// C03 — every Component declares spec.system (referencing the produced System) and a
+// spec.dependsOn whose references resolve to entities the orchestrator produces.
+function c03_component_relations(data, dir) {
+  if (!isComposable(data, dir)) return NOT_COMPOSABLE;
+  const catalogs = allCatalogContents(dir);
+  const docs = catalogs.flatMap(c => parseCatalogDocs(c.content));
+  const systemNames = new Set(docs.filter(d => d.kind === 'System' && d.name).map(d => normalizeRef(d.name)));
+  const definedNames = new Set(docs.filter(d => d.name).map(d => normalizeRef(d.name)));
+  const allow = new Set(DEPENDS_ON_ALLOWLIST.map(a => normalizeRef(bareRef(a))));
+  const components = docs.filter(d => d.kind === 'Component');
+  if (components.length === 0) return { status: 'FAIL', detail: 'no Component produced' };
+  const issues = [];
+  for (const c of components) {
+    if (!c.system) issues.push(`${c.name || 'component'}: missing spec.system`);
+    else if (!systemNames.has(normalizeRef(c.system))) issues.push(`${c.name || 'component'}: spec.system "${c.system}" references no produced System`);
+    if (!c.hasDependsOn) issues.push(`${c.name || 'component'}: missing spec.dependsOn`);
+  }
+  const phantoms = [];
+  for (const c of catalogs) {
+    for (const ref of extractDependsOn(c.content)) {
+      const norm = normalizeRef(bareRef(ref));
+      if (!definedNames.has(norm) && !allow.has(norm)) phantoms.push(bareRef(ref));
+    }
+  }
+  if (phantoms.length) issues.push(`dependsOn does not resolve: ${[...new Set(phantoms)].join(', ')}`);
+  return issues.length ? { status: 'FAIL', detail: issues.join('; ') } : { status: 'PASS' };
+}
+
+// C04 — no skeleton is fetched more than once.
+function c04_no_duplication(data, dir) {
+  if (!isComposable(data, dir)) return NOT_COMPOSABLE;
+  const keys = fetchSteps(data).map(s => s?.input?.url).filter(u => typeof u === 'string').map(u => u.split(/[?#]/)[0]);
+  const seen = new Set(), dups = new Set();
+  for (const k of keys) { if (seen.has(k)) dups.add(k); else seen.add(k); }
+  return dups.size ? { status: 'FAIL', detail: `skeleton fetched more than once: ${[...dups].join(', ')}` } : { status: 'PASS' };
+}
+
+// C05 — a linking parameter passed to several fetch steps has the same value everywhere.
+// Which parameters actually LINK components is semantic (a shared database name links;
+// a per-skeleton project name does not), so this rule is reviewed manually rather than
+// mechanized — a same-name heuristic produces false positives on coincidental reuse.
+function c05_consistent_linking(data, dir) {
+  if (!isComposable(data, dir)) return NOT_COMPOSABLE;
+  return { status: 'SKIP', detail: 'manual review (linking parameters are semantic, not mechanically detectable)' };
+}
+
+// ADR-0001 R3 — every spec.lifecycle on a produced entity is a valid Backstage value.
+function adr_r3_lifecycle(_data, dir) {
   const catalogs = allCatalogContents(dir);
   if (catalogs.length === 0) return { status: 'SKIP', detail: 'no catalog-info.yaml' };
   const issues = [];
@@ -439,30 +528,7 @@ function c03_valid_lifecycle(_data, dir) {
       if (!VALID_LIFECYCLES.includes(val)) issues.push(`${c.name}: invalid lifecycle "${val}"`);
     }
   }
-  if (issues.length > 0) return { status: 'FAIL', detail: `${issues.join('; ')} (valid: ${VALID_LIFECYCLES.join(', ')})` };
-  return { status: 'PASS' };
-}
-
-// C04 — every dependsOn reference must resolve to a produced entity or an allowlisted brick.
-function c04_resolvable_dependson(_data, dir) {
-  const catalogs = allCatalogContents(dir);
-  if (catalogs.length === 0) return { status: 'SKIP', detail: 'no catalog-info.yaml' };
-  const defined = new Set();
-  for (const c of catalogs) {
-    for (const m of c.content.matchAll(/^\s*name:\s*(.+?)\s*$/gm)) defined.add(normalizeRef(m[1]));
-  }
-  const allow = new Set(DEPENDS_ON_ALLOWLIST.map(a => normalizeRef(bareRef(a))));
-  const phantoms = [];
-  for (const c of catalogs) {
-    for (const ref of extractDependsOn(c.content)) {
-      const bare = bareRef(ref);
-      const norm = normalizeRef(bare);
-      if (defined.has(norm) || allow.has(norm)) continue;
-      phantoms.push(bare);
-    }
-  }
-  if (phantoms.length > 0) return { status: 'FAIL', detail: `unresolved dependsOn (phantom): ${[...new Set(phantoms)].join(', ')}` };
-  return { status: 'PASS' };
+  return issues.length ? { status: 'FAIL', detail: `${issues.join('; ')} (valid: ${VALID_LIFECYCLES.join(', ')})` } : { status: 'PASS' };
 }
 
 // ─── Rule registry ───────────────────────────────────────────────────────────
@@ -487,10 +553,13 @@ const RULES = [
   { id: 'R17', name: 'step IDs verb-object pattern', fn: (d, _dir) => r17_step_ids(d), category: 'Steps' },
   { id: 'R18', name: 'output has links', fn: (d, _dir) => r18_output_links(d), category: 'Steps' },
   { id: 'R19', name: 'output has text', fn: (d, _dir) => r19_output_text(d), category: 'Steps' },
-  { id: 'C01', name: 'published under a SemVer tag', fn: (d, dir) => c01_semver_tag(d, dir), category: 'Composable' },
-  { id: 'C02', name: 'remote fetch:template is pinned', fn: (d, _dir) => c02_pinned_fetch(d), category: 'Composable' },
-  { id: 'C03', name: 'lifecycle is a valid Backstage value', fn: (d, dir) => c03_valid_lifecycle(d, dir), category: 'Composable' },
-  { id: 'C04', name: 'dependsOn references resolve', fn: (d, dir) => c04_resolvable_dependson(d, dir), category: 'Composable' },
+  { id: 'C01', name: 'pinned skeleton refs', fn: (d, dir) => c01_pinned_refs(d, dir), category: 'Composable' },
+  { id: 'C02', name: 'System-level catalog entry', fn: (d, dir) => c02_system_entry(d, dir), category: 'Composable' },
+  { id: 'C03', name: 'declared component relations', fn: (d, dir) => c03_component_relations(d, dir), category: 'Composable' },
+  { id: 'C04', name: 'no skeleton duplication', fn: (d, dir) => c04_no_duplication(d, dir), category: 'Composable' },
+  { id: 'C05', name: 'consistent linking parameters', fn: (d, dir) => c05_consistent_linking(d, dir), category: 'Composable' },
+  { id: 'ADR-R1', name: 'published under a SemVer tag', fn: (d, dir) => adr_r1_semver_tag(d, dir), category: 'ADR governance' },
+  { id: 'ADR-R3', name: 'valid lifecycle value', fn: (d, dir) => adr_r3_lifecycle(d, dir), category: 'ADR governance' },
 ];
 
 // ─── Discovery ───────────────────────────────────────────────────────────────

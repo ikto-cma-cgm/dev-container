@@ -4,6 +4,15 @@ All notable changes to this template are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this template adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) per ADR-0001 Rule R1.
 
+## [0.2.0] - 2026-06-02
+
+### Added
+- Top-level `kind: System` entry in the generated `catalog-info.yaml`, grouping the Component and the Liquibase Resource — satisfies composable standard C02 (System-level catalog entry) and lets each Component's `spec.system` resolve (C03).
+
+### Notes
+- **Option C deviation on C01:** skeletons are vendored locally (`skeleton-app/`, `skeleton-liquibase/`), so there is no remote `fetch:template` to pin. C01 (pinned skeleton refs) is therefore N/A for this Phase-1 variant; it applies in Phase 2 when skeletons are fetched remotely by version. C02-C05 apply and pass.
+- A new SemVer tag `springboot-liquibase-composition-template/v0.2.0` should be cut for this release.
+
 ## [0.1.0] - 2026-06-01
 
 ### Added

@@ -1,4 +1,15 @@
 apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: ${{ values.system }}
+  description: ${{ values.description }}
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+spec:
+  owner: ${{ values.owner }}
+  domain: ${{ values.domain }}
+---
+apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: ${{ values.name }}

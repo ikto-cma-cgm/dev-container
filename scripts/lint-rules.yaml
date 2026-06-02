@@ -88,25 +88,26 @@ skeleton:
     - "'' |"
     - '"" |'
 
-## Composable Service Governance — Rules C01-C04
-## Mechanizes the composable standards (SMT-99, ≈ ADR-0001 rules R1-R4) that were
-## previously enforced by review only. These run on composable/orchestrator
-## templates and surface ungoverned composition (unpinned fetches, phantom
-## dependsOn, invalid lifecycle, missing SemVer publication).
+## Composable Service Governance — mechanizes the composable standards.
+## Category 'Composable' = the SMT-99 page rules C01-C05 (pinned refs, System
+## entry, component relations, no duplication, consistent linking params),
+## evaluated only on composable orchestrators. Category 'ADR governance' = the
+## ADR-0001 rules R1 (SemVer publication tag) and R3 (valid lifecycle), checked
+## on every template. Source of truth for the C0x IDs is the SMT-99 page.
 composable:
-  # C03 — spec.lifecycle on produced catalog entities must be a valid Backstage value.
+  # ADR-R3 — spec.lifecycle on produced catalog entities must be a valid value.
   validLifecycles:
     - experimental
     - production
     - deprecated
 
-  # C01/C02 — SemVer version pattern. C01 tag form: '<template-name>/vX.Y.Z'
-  # (monorepo) or a bare 'vX.Y.Z'. C02 accepts a remote fetch:template only when
-  # pinned to a ref matching this pattern (a SemVer tag) or a commit SHA; any
-  # branch name (master/main/develop/...) is rejected as a moving ref.
+  # SemVer version pattern. ADR-R1 tag form: '<template-name>/vX.Y.Z' (monorepo)
+  # or a bare 'vX.Y.Z'. C01 accepts a remote fetch:template only when pinned to a
+  # ref matching this pattern (a SemVer tag) or a commit SHA; any branch name
+  # (master/main/develop/...) is rejected as a moving ref.
   semverTagPattern: 'v\d+\.\d+\.\d+'
 
-  # C04 — dependsOn references allowed even when not produced by this template
+  # C03 — dependsOn references allowed even when not produced by this template
   # (governed shared bricks owned elsewhere). Empty today: no governed shared
   # brick exists yet, so every external dependsOn is treated as a phantom.
   dependsOnAllowlist: []
