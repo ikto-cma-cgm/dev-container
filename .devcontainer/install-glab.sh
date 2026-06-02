@@ -24,6 +24,15 @@ if curl -fsSL --max-time 10 "$GH_URL" -o /tmp/gh.deb 2>/dev/null; then
   sudo dpkg -i /tmp/gh.deb
   rm /tmp/gh.deb
   echo "✅ $(gh version | head -1) installé"
+
+  # L'extension gh-copilot est dépréciée (sept. 2025).
+  # Le nouveau GitHub Copilot CLI est un binaire standalone : https://github.com/github/copilot-cli
+  echo "→ Installation de GitHub Copilot CLI (nouveau binaire standalone)"
+  if curl -fsSL https://gh.io/copilot-install | bash; then
+    echo "✅ copilot installé — lance 'copilot' dans un répertoire projet (REPL interactif)"
+  else
+    echo "⚠️  copilot non installé"
+  fi
 else
   echo "⚠️  gh non installé (github.com inaccessible depuis ce réseau)"
 fi
