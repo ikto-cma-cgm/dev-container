@@ -5,24 +5,16 @@
   "name": "Backstage Template Creator",
   // Image Docker de base : Node.js 20 sur Debian Bookworm.
   "image": "mcr.microsoft.com/devcontainers/javascript-node:20-bookworm",
-  // Exécuté sur ton Mac avant que le container démarre.
-  // Démarre le proxy socat en arrière-plan si VLLM_HOST est défini dans .env.
-  "initializeCommand": "bash .devcontainer/start-proxy-host.sh",
   // Exécuté une seule fois à la création du container.
-  // Installe les outils de développement : opencode (assistant IA CLI), Backstage CLI, Yarn,
+  // Installe les outils de développement : Backstage CLI, Yarn,
   // et Spectral CLI (pour valider les specs OpenAPI contre le ruleset HIP en ligne de commande,
   // en complément de l'extension VS Code stoplight.spectral qui lint en temps réel dans l'éditeur).
-  "postCreateCommand": "bash .devcontainer/install-glab.sh && npm install -g opencode-ai @ai-sdk/openai-compatible @backstage/cli yarn @stoplight/spectral-cli && cd scripts && npm install && cd ..",
-  // Exécuté à chaque démarrage du container.
-  // Lit le .env et génère ~/.config/opencode/opencode.json — opencode est alors prêt sans aucune config manuelle.
-  "postStartCommand": "bash .devcontainer/setup.sh",
+  "postCreateCommand": "bash .devcontainer/install-glab.sh && npm install -g @backstage/cli yarn @stoplight/spectral-cli && cd scripts && npm install && cd ..",
   // Tout ce qui concerne VS Code spécifiquement.
   "customizations": {
     "vscode": {
       // Extensions installées automatiquement dans le container.
       "extensions": [
-        // Assistant IA intégré — se connecte au modèle configuré dans .env
-        "sst-dev.opencode",
         // GitHub Copilot — autocompletion IA dans l'éditeur (nécessite un compte GitHub avec Copilot actif)
         "GitHub.copilot",
         // GitHub Copilot Chat — interface de chat IA dans VS Code
