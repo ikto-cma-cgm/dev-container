@@ -10,5 +10,3 @@ spec:
     - ./output/templates/springboot-swagger-service-template/template.yaml
     - ./output/templates/node-service-template/template.yaml
     - ./output/templates/node-swagger-service-template/template.yaml
-    - ./output/templates/node-service-template/template.yaml
-    - ./output/templates/node-swagger-service-template/template.yaml
