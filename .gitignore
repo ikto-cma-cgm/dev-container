@@ -7,8 +7,6 @@ node_modules/
 # Historique aider (ancien assistant)
 .aider.*
 
-# Opencode
-.opencode/
 data/
 templates/
 catalogs/

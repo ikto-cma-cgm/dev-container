@@ -20,23 +20,14 @@ exactement le même environnement — les mêmes outils, les mêmes versions, le
 ```
 .devcontainer/
   devcontainer.json       ← la "recette" de l'environnement
-  setup.sh                ← génère la config opencode depuis .env au démarrage
 
 .agent/
-  conventions.md          ← 19 règles CMA CGM (chargées dans toutes les sessions IA)
-  create.md               ← guide interactif de création de template (mode ai-create)
-  review.md               ← guide interactif d'audit de template (mode ai-review)
+  conventions.md          ← 19 règles CMA CGM
+  create.md               ← guide de création de template
+  review.md               ← guide d'audit de template
 
 scripts/
   lint.sh                 ← linter 19 règles
-  ai-create.sh            ← assistant IA en mode création
-  ai-review.sh            ← assistant IA en mode revue
-
-example-template/
-  template.yaml           ← un vrai template Backstage, commenté ligne par ligne
-  skeleton/
-    catalog-info.yaml     ← fichier généré par le template (avec variables Nunjucks)
-    README.md             ← README généré dans le repo cible
 ```
 
 ### Ce qui est installé automatiquement dans le container
@@ -46,9 +37,8 @@ example-template/
 | Node.js 20 LTS | Runtime de base |
 | `@backstage/cli` | CLI officiel Backstage |
 | Yarn | Gestionnaire de paquets utilisé par Backstage |
-| **opencode** (CLI) | Assistant IA dans le terminal — configuré automatiquement depuis `.env` |
-| **sst-dev.opencode** (extension VS Code) | Interface graphique opencode intégrée dans VS Code |
 | **redhat.vscode-yaml** (extension VS Code) | Validation YAML avec schémas (erreurs en rouge inline) |
+| **stoplight.spectral** (extension VS Code) | Linter OpenAPI/Spectral en temps réel |
 | **ronnidc.nunjucks** (extension VS Code) | Syntax highlighting pour les templates Nunjucks |
 
 ---
@@ -62,32 +52,20 @@ example-template/
 
 ---
 
-## Configuration de l'assistant IA
-
-L'assistant IA (opencode) se connecte à ton modèle local ou distant via un fichier `.env`.
+## Configuration
 
 ```bash
 # À la racine du projet
 cp .env.example .env
 ```
 
-Puis édite `.env` avec tes valeurs :
+Puis édite `.env` :
 
 ```bash
-AI_API_BASE=http://ton-serveur:port/v1   # URL de l'API OpenAI-compatible
-AI_API_KEY=ta-cle-api                    # Clé API (ou "dummy" si pas d'auth)
-AI_MODEL=llama3.2                        # Nom du modèle sur ton serveur
-GH_TOKEN=ghp_xxxx                        # Token GitHub (optionnel, pour push de templates)
+GH_TOKEN=ghp_xxxx    # Token GitHub pour les opérations gh (création de repos, push, etc.)
 ```
 
 Le fichier `.env` est dans `.gitignore` — il ne sera jamais commité.
-
-> **Serveur sur le réseau local (LAN) ?** Les containers Docker sur Mac ne peuvent pas atteindre
-> directement les IPs du réseau local. Lance `./start-proxy.sh` sur ta machine hôte (nécessite socat),
-> puis utilise `http://host.docker.internal:8000/v1` dans `AI_API_BASE`.
-
-Au démarrage du container, `setup.sh` lit `.env` et génère automatiquement
-`~/.config/opencode/opencode.json`. opencode est prêt sans aucune configuration manuelle.
 
 ---
 
@@ -103,48 +81,9 @@ Au démarrage du container, `setup.sh` lit `.env` et génère automatiquement
 
 ```bash
 # Dans le terminal intégré VS Code (Ctrl+`)
-backstage-cli --version     # doit afficher la version du CLI
-opencode --version          # doit afficher la version opencode
-./scripts/lint.sh example-template/    # doit afficher le rapport de lint
+backstage-cli --version                        # doit afficher la version du CLI
+./scripts/lint.sh example-template/           # doit afficher le rapport de lint
 ```
-
----
-
-## Utiliser l'assistant IA (opencode)
-
-opencode est un assistant IA en ligne de commande. Il est configuré **automatiquement** au démarrage
-du container depuis ton `.env` — aucune manipulation manuelle.
-
-### Via VS Code (recommandé)
-
-opencode s'intègre directement dans VS Code via l'extension `sst-dev.opencode`. Ouvre-la depuis la
-barre latérale gauche pour une interface de chat complète avec accès aux fichiers du projet.
-
-Les **conventions CMA CGM** (19 règles) sont automatiquement chargées dans chaque session.
-
-### Via le terminal
-
-```bash
-opencode     # ouvre une session interactive
-```
-
-### Modes spécialisés
-
-```bash
-./scripts/ai-create.sh                      # création d'un template from scratch
-./scripts/ai-review.sh example-template/    # audit et correction d'un template existant
-```
-
-**Mode création** — l'assistant te guide via un dialogue interactif :
-- Il pose des questions sur ton besoin (type de service, équipe, paramètres spécifiques)
-- Il valide chaque choix avant de générer les fichiers
-- Il vérifie les 19 règles et te propose des corrections si nécessaire
-
-**Mode revue** — l'assistant audite un template existant :
-- Il lit les fichiers du template
-- Il vérifie les 19 règles une par une, en expliquant pourquoi chaque règle existe
-- Il propose des corrections minimales avec diffs YAML lisibles
-- Il demande confirmation avant d'appliquer chaque modification
 
 ---
 
