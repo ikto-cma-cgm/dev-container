@@ -1,0 +1,673 @@
+openapi: 3.0.3
+info:
+  title: "CMA CGM - Shipping Booking"
+  description: >
+    [DEMO] Manage freight shipping bookings on the CMA CGM platform.
+    Allows freight forwarders and shippers to create, consult, update and cancel
+    cargo space reservations. Lifecycle: DRAFT -> CONFIRMED -> CANCELLED.
+    This specification is provided for demonstration purposes only.
+  version: 1.0.0
+  contact:
+    name: shipping-team
+    email: api-lead@cma-cgm.com
+  x-hopex:
+    - componentCode: unknown
+  x-api-type: experience
+  x-contacts:
+    api-lead: shipping-team
+    api-factory: hip-api-factory
+  x-domain: shipping
+
+servers:
+  - url: /shipping/booking/booking/experience/cockpit/v1
+    description: CMA CGM HIP Gateway — demo environment
+
+tags:
+  - name: Bookings
+    description: Operations on shipping bookings
+
+paths:
+  /bookings:
+    get:
+      operationId: listBookings
+      summary: List shipping bookings
+      description: >
+        Returns a paginated list of shipping bookings.
+        Supports filtering by shipper identifier and lifecycle status.
+        Pagination is handled via the Range request header and Content-Range response header.
+      tags:
+        - Bookings
+      security:
+        - oauth2:
+            - booking:read:fe
+      parameters:
+        - $ref: '#/components/parameters/RangeHeader'
+        - $ref: '#/components/parameters/ShipperIdQuery'
+        - $ref: '#/components/parameters/StatusQuery'
+      responses:
+        '206':
+          description: Partial list of bookings returned successfully
+          headers:
+            Content-Range:
+              description: Range of returned items and total count, format items start-end/total
+              schema:
+                type: string
+                example: items 0-9/42
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '416':
+          $ref: '#/components/responses/RangeNotSatisfiable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      operationId: createBooking
+      summary: Create a shipping booking
+      description: >
+        Submit a new cargo space reservation.
+        The booking is created in DRAFT status pending confirmation from CMA CGM.
+      tags:
+        - Bookings
+      security:
+        - oauth2:
+            - booking:write:fe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
+            example:
+              origin: FRMRS
+              destination: CNSHA
+              departureDate: "2026-08-15"
+              containerType: 40HC
+              containerCount: 2
+              shipperId: SHP-00421
+              shipperName: Acme Logistics France SAS
+              commodity: Electronic components
+      responses:
+        '201':
+          description: Booking successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+              example:
+                bookingId: BKG-2026-000142
+                status: DRAFT
+                origin: FRMRS
+                destination: CNSHA
+                departureDate: "2026-08-15"
+                arrivalDate: "2026-09-10"
+                containerType: 40HC
+                containerCount: 2
+                shipperId: SHP-00421
+                shipperName: Acme Logistics France SAS
+                commodity: Electronic components
+                createdAt: "2026-06-03T08:00:00Z"
+                updatedAt: "2026-06-03T08:00:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /bookings/{bookingId}:
+    get:
+      operationId: getBookingById
+      summary: Get a shipping booking
+      description: Retrieve the full details of a specific shipping booking by its unique identifier.
+      tags:
+        - Bookings
+      security:
+        - oauth2:
+            - booking:read:fe
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Booking details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+              example:
+                bookingId: BKG-2026-000142
+                status: CONFIRMED
+                origin: FRMRS
+                destination: CNSHA
+                departureDate: "2026-08-15"
+                arrivalDate: "2026-09-10"
+                containerType: 40HC
+                containerCount: 2
+                shipperId: SHP-00421
+                shipperName: Acme Logistics France SAS
+                commodity: Electronic components
+                createdAt: "2026-06-03T08:00:00Z"
+                updatedAt: "2026-06-03T09:15:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      operationId: updateBooking
+      summary: Update a shipping booking
+      description: >
+        Partially update a shipping booking.
+        Only bookings in DRAFT status can be modified.
+        Attempting to update a CONFIRMED or CANCELLED booking returns 409.
+      tags:
+        - Bookings
+      security:
+        - oauth2:
+            - booking:write:fe
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingPatch'
+            example:
+              departureDate: "2026-08-20"
+              containerCount: 3
+              commodity: Industrial machinery
+      responses:
+        '200':
+          description: Booking successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+              example:
+                bookingId: BKG-2026-000142
+                status: DRAFT
+                origin: FRMRS
+                destination: CNSHA
+                departureDate: "2026-08-20"
+                arrivalDate: "2026-09-15"
+                containerType: 40HC
+                containerCount: 3
+                shipperId: SHP-00421
+                shipperName: Acme Logistics France SAS
+                commodity: Industrial machinery
+                createdAt: "2026-06-03T08:00:00Z"
+                updatedAt: "2026-06-03T10:00:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /bookings/{bookingId}/cancel:
+    post:
+      operationId: cancelBooking
+      summary: Cancel a shipping booking
+      description: >
+        Cancel a shipping booking.
+        Bookings in any status except CANCELLED can be cancelled.
+        Attempting to cancel an already CANCELLED booking returns 409.
+      tags:
+        - Bookings
+      security:
+        - oauth2:
+            - booking:manage:fe
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '204':
+          description: Booking successfully cancelled
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: "https://auth.cma-cgm.com/oauth2/token"
+          scopes:
+            booking:read:fe: Read shipping bookings (frontend consumer)
+            booking:write:fe: Create and update shipping bookings (frontend consumer)
+            booking:manage:fe: Cancel and manage shipping bookings (frontend consumer)
+
+  parameters:
+    BookingId:
+      name: bookingId
+      in: path
+      required: true
+      description: Unique identifier of the booking
+      schema:
+        type: string
+        example: BKG-2026-000142
+
+    RangeHeader:
+      name: Range
+      in: header
+      required: false
+      description: Pagination range, format items=start-end
+      schema:
+        type: string
+        example: items=0-9
+
+    ShipperIdQuery:
+      name: shipperId
+      in: query
+      required: false
+      description: Filter bookings by shipper identifier
+      schema:
+        type: string
+        example: SHP-00421
+
+    StatusQuery:
+      name: status
+      in: query
+      required: false
+      description: "Filter bookings by lifecycle status: DRAFT, CONFIRMED, or CANCELLED"
+      schema:
+        type: string
+        enum: [DRAFT, CONFIRMED, CANCELLED]
+        example: DRAFT
+
+  responses:
+    BadRequest:
+      description: The request is malformed or contains invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Fault'
+          example:
+            reason: Bad Request
+            code: BKG-400-001
+            description: containerCount must be a positive integer
+
+    Unauthorized:
+      description: Authentication credentials are missing or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Fault'
+          example:
+            reason: Unauthorized
+            code: BKG-401-001
+            description: Bearer token is missing or expired
+
+    Forbidden:
+      description: The authenticated user does not have permission to perform this action
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Fault'
+          example:
+            reason: Forbidden
+            code: BKG-403-001
+            description: Insufficient scope to access this resource
+
+    NotFound:
+      description: The requested booking was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Fault'
+          example:
+            reason: Not Found
+            code: BKG-404-001
+            description: No booking found with identifier BKG-2026-000142
+
+    Conflict:
+      description: The operation conflicts with the current lifecycle state of the booking
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Fault'
+          example:
+            reason: Conflict
+            code: BKG-409-001
+            description: Booking BKG-2026-000142 is in CONFIRMED status and cannot be modified
+
+    RangeNotSatisfiable:
+      description: The requested pagination range cannot be satisfied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Fault'
+          example:
+            reason: Range Not Satisfiable
+            code: BKG-416-001
+            description: Requested range exceeds total number of available items
+
+    InternalServerError:
+      description: An unexpected server error occurred
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Fault'
+          example:
+            reason: Internal Server Error
+            code: BKG-500-001
+            description: An unexpected error occurred. Please retry or contact support.
+
+  schemas:
+    Fault:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          description: HTTP error label or free-text error category
+          example: Not Found
+        code:
+          type: string
+          description: Application-specific error code for programmatic handling
+          example: BKG-404-001
+        description:
+          type: string
+          description: Human-readable explanation of the error
+          example: No booking found with identifier BKG-2026-000142
+      example:
+        reason: Not Found
+        code: BKG-404-001
+        description: No booking found with identifier BKG-2026-000142
+
+    BookingSummary:
+      type: object
+      required:
+        - bookingId
+        - status
+        - origin
+        - destination
+        - departureDate
+        - containerType
+        - containerCount
+        - shipperId
+      properties:
+        bookingId:
+          type: string
+          description: Unique identifier of the booking
+          example: BKG-2026-000142
+        status:
+          type: string
+          description: "Current lifecycle status of the booking: DRAFT, CONFIRMED, or CANCELLED"
+          enum: [DRAFT, CONFIRMED, CANCELLED]
+          example: DRAFT
+        origin:
+          type: string
+          description: UN/LOCODE of the origin port
+          example: FRMRS
+        destination:
+          type: string
+          description: UN/LOCODE of the destination port
+          example: CNSHA
+        departureDate:
+          type: string
+          format: date
+          description: Planned departure date from the origin port
+          example: "2026-08-15"
+        containerType:
+          type: string
+          description: "ISO type of the container: 20DRY, 40DRY, 40HC, or 45HC"
+          enum: [20DRY, 40DRY, 40HC, 45HC]
+          example: 40HC
+        containerCount:
+          type: integer
+          description: Number of containers requested in this booking
+          example: 2
+        shipperId:
+          type: string
+          description: Identifier of the shipper placing the booking
+          example: SHP-00421
+      example:
+        bookingId: BKG-2026-000142
+        status: DRAFT
+        origin: FRMRS
+        destination: CNSHA
+        departureDate: "2026-08-15"
+        containerType: 40HC
+        containerCount: 2
+        shipperId: SHP-00421
+
+    BookingList:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: Paginated list of booking summaries
+          items:
+            $ref: '#/components/schemas/BookingSummary'
+          example:
+            - bookingId: BKG-2026-000142
+              status: DRAFT
+              origin: FRMRS
+              destination: CNSHA
+              departureDate: "2026-08-15"
+              containerType: 40HC
+              containerCount: 2
+              shipperId: SHP-00421
+            - bookingId: BKG-2026-000143
+              status: CONFIRMED
+              origin: FRMRS
+              destination: SGSIN
+              departureDate: "2026-08-22"
+              containerType: 20DRY
+              containerCount: 4
+              shipperId: SHP-00421
+      example:
+        items:
+          - bookingId: BKG-2026-000142
+            status: DRAFT
+            origin: FRMRS
+            destination: CNSHA
+            departureDate: "2026-08-15"
+            containerType: 40HC
+            containerCount: 2
+            shipperId: SHP-00421
+
+    Booking:
+      type: object
+      required:
+        - bookingId
+        - status
+        - origin
+        - destination
+        - departureDate
+        - containerType
+        - containerCount
+        - shipperId
+        - shipperName
+        - commodity
+        - createdAt
+        - updatedAt
+      properties:
+        bookingId:
+          type: string
+          description: Unique identifier of the booking
+          example: BKG-2026-000142
+        status:
+          type: string
+          description: "Current lifecycle status of the booking: DRAFT, CONFIRMED, or CANCELLED"
+          enum: [DRAFT, CONFIRMED, CANCELLED]
+          example: DRAFT
+        origin:
+          type: string
+          description: UN/LOCODE of the origin port
+          example: FRMRS
+        destination:
+          type: string
+          description: UN/LOCODE of the destination port
+          example: CNSHA
+        departureDate:
+          type: string
+          format: date
+          description: Planned departure date from the origin port
+          example: "2026-08-15"
+        arrivalDate:
+          type: string
+          format: date
+          description: Estimated arrival date at the destination port
+          example: "2026-09-10"
+        containerType:
+          type: string
+          description: "ISO type of the container: 20DRY, 40DRY, 40HC, or 45HC"
+          enum: [20DRY, 40DRY, 40HC, 45HC]
+          example: 40HC
+        containerCount:
+          type: integer
+          description: Number of containers requested in this booking
+          example: 2
+        shipperId:
+          type: string
+          description: Identifier of the shipper placing the booking
+          example: SHP-00421
+        shipperName:
+          type: string
+          description: Full legal name of the shipper company
+          example: Acme Logistics France SAS
+        commodity:
+          type: string
+          description: Description of the cargo commodity being shipped
+          example: Electronic components
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when the booking was first created
+          example: "2026-06-03T08:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of the last update applied to the booking
+          example: "2026-06-03T08:30:00Z"
+      example:
+        bookingId: BKG-2026-000142
+        status: DRAFT
+        origin: FRMRS
+        destination: CNSHA
+        departureDate: "2026-08-15"
+        arrivalDate: "2026-09-10"
+        containerType: 40HC
+        containerCount: 2
+        shipperId: SHP-00421
+        shipperName: Acme Logistics France SAS
+        commodity: Electronic components
+        createdAt: "2026-06-03T08:00:00Z"
+        updatedAt: "2026-06-03T08:30:00Z"
+
+    BookingRequest:
+      type: object
+      required:
+        - origin
+        - destination
+        - departureDate
+        - containerType
+        - containerCount
+        - shipperId
+        - shipperName
+        - commodity
+      properties:
+        origin:
+          type: string
+          description: UN/LOCODE of the origin port
+          example: FRMRS
+        destination:
+          type: string
+          description: UN/LOCODE of the destination port
+          example: CNSHA
+        departureDate:
+          type: string
+          format: date
+          description: Planned departure date from the origin port
+          example: "2026-08-15"
+        containerType:
+          type: string
+          description: "ISO type of the container: 20DRY, 40DRY, 40HC, or 45HC"
+          enum: [20DRY, 40DRY, 40HC, 45HC]
+          example: 40HC
+        containerCount:
+          type: integer
+          description: Number of containers to reserve
+          minimum: 1
+          example: 2
+        shipperId:
+          type: string
+          description: Identifier of the shipper placing the booking
+          example: SHP-00421
+        shipperName:
+          type: string
+          description: Full legal name of the shipper company
+          example: Acme Logistics France SAS
+        commodity:
+          type: string
+          description: Description of the cargo commodity being shipped
+          example: Electronic components
+      example:
+        origin: FRMRS
+        destination: CNSHA
+        departureDate: "2026-08-15"
+        containerType: 40HC
+        containerCount: 2
+        shipperId: SHP-00421
+        shipperName: Acme Logistics France SAS
+        commodity: Electronic components
+
+    BookingPatch:
+      type: object
+      description: Partial update payload for a booking. Only applicable to bookings in DRAFT status.
+      properties:
+        departureDate:
+          type: string
+          format: date
+          description: Updated planned departure date from the origin port
+          example: "2026-08-20"
+        containerCount:
+          type: integer
+          description: Updated number of containers to reserve
+          minimum: 1
+          example: 3
+        commodity:
+          type: string
+          description: Updated description of the cargo commodity
+          example: Industrial machinery
+      example:
+        departureDate: "2026-08-20"
+        containerCount: 3
+        commodity: Industrial machinery
