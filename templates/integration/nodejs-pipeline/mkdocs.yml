@@ -1,4 +1,0 @@
-site_name: Node.js CI/CD Pipeline Templates
-docs_dir: docs
-plugins:
-  - techdocs-core
