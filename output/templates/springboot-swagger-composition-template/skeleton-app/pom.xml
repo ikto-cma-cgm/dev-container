@@ -26,9 +26,6 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <openapi-generator.version>7.10.0</openapi-generator.version>
         <sonar.exclusions>**/*.xml</sonar.exclusions>
-{%- if values.swaggerUrl %}
-        <openapi.spec.source.url>${{ values.swaggerUrl }}</openapi.spec.source.url>
-{%- endif %}
     </properties>
 
     <dependencyManagement>
@@ -186,7 +183,6 @@
                     <propertyFileWillBeOverwritten>true</propertyFileWillBeOverwritten>
                 </configuration>
             </plugin>
-{%- if values.swaggerUrl %}
             <plugin>
                 <groupId>org.openapitools</groupId>
                 <artifactId>openapi-generator-maven-plugin</artifactId>
@@ -197,7 +193,11 @@
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <inputSpec>${{ values.swaggerUrl }}</inputSpec>
+{%- if values.repoProvider === 'github' %}
+                            <inputSpec>https://raw.githubusercontent.com/${{ values.repoOwner }}/${{ values.apiEntityName }}/main/openapi.yaml</inputSpec>
+{%- else %}
+                            <inputSpec>https://${{ values.gitlabHost }}/${{ values.repoOwner }}/${{ values.apiEntityName }}/-/raw/main/openapi.yaml</inputSpec>
+{%- endif %}
                             <generatorName>spring</generatorName>
                             <apiPackage>${{ values.packageName }}.api.controller</apiPackage>
                             <modelPackage>${{ values.packageName }}.api.model</modelPackage>
@@ -216,7 +216,6 @@
                     </execution>
                 </executions>
             </plugin>
-{%- endif %}
         </plugins>
     </build>
 </project>
