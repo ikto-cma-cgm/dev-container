@@ -225,6 +225,7 @@
                         </goals>
                         <configuration>
                             <inputSpec>${project.build.directory}/api-spec/openapi.yaml</inputSpec>
+                            <output>${project.basedir}</output>
                             <generatorName>spring</generatorName>
                             <apiPackage>${{ values.packageName }}.api.controller</apiPackage>
                             <modelPackage>${{ values.packageName }}.api.model</modelPackage>
