@@ -9,7 +9,11 @@ Ce service suit une approche OpenAPI-first. La spécification distante est copi�
 ## Catalog entities
 
 - `Component`: service runtime Node.js
-- `API`: contrat OpenAPI exposé par le service (`${{ values.name }}-api`)
+{%- if values.apiRef %}
+- API liée : `${{ values.apiRef }}` (entité API externe — source de vérité dans son propre repo)
+{%- else %}
+- `API` : contrat OpenAPI exposé par le service (`${{ values.name }}-api`), définition résolue depuis `${{ values.swaggerUrl }}`
+{%- endif %}
 
 ## Getting started
 

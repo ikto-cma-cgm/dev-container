@@ -68,5 +68,5 @@ spec:
   owner: ${{ values.owner }}
   system: ${{ values.system }}
   definition:
-    $text: ./src/main/resources/api/openapi.yaml
+    $text: ${{ values.swaggerUrl }}
 {%- endif %}
