@@ -199,7 +199,6 @@
                         <configuration>
                             <inputSpec>${{ values.swaggerUrl }}</inputSpec>
                             <generatorName>spring</generatorName>
-                            <output>${project.basedir}</output>
                             <apiPackage>${{ values.packageName }}.api.controller</apiPackage>
                             <modelPackage>${{ values.packageName }}.api.model</modelPackage>
                             <supportingFilesToGenerate>ApiUtil.java</supportingFilesToGenerate>
