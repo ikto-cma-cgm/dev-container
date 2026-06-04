@@ -4,16 +4,12 @@ ${{ values.description }}
 
 ## Overview
 
-Ce service suit une approche OpenAPI-first. La spécification distante est copiée localement dans `src/openapi.yaml` puis utilisée pour générer le code serveur TypeScript Express.
+Ce service suit une approche OpenAPI-first. La spécification OpenAPI est récupérée depuis l'entité API `${{ values.apiRef }}` lors du build npm et utilisée pour générer le code serveur TypeScript Express.
 
 ## Catalog entities
 
 - `Component`: service runtime Node.js
-{%- if values.apiRef %}
 - API liée : `${{ values.apiRef }}` (entité API externe — source de vérité dans son propre repo)
-{%- else %}
-- `API` : contrat OpenAPI exposé par le service (`${{ values.name }}-api`), définition résolue depuis `${{ values.swaggerUrl }}`
-{%- endif %}
 
 ## Getting started
 
