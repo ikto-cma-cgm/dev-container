@@ -245,8 +245,9 @@ spec:
         content: |
           Service **${{ parameters.name }}** scaffoldé avec succès.
           1. Clone : `git clone ${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }}`
-          2. Build (génère le code API depuis la spec) : `mvn clean install`
-          3. Implémentez les interfaces générées : créez un `@RestController` qui implémente `${{ parameters.packageName }}.api.controller.{Resource}Api`
+          2. Build (télécharge la spec et génère les interfaces Java) : `mvn clean install`
+          3. Implémentez les interfaces générées dans `target/generated-sources/openapi/` :
+             créez un `@RestController` qui implémente `${{ parameters.packageName }}.api.controller.{Tag}Api`
           4. Lancez localement : `mvn spring-boot:run -Plocal`
           5. Swagger UI : `http://localhost:8080/swagger-ui.html`
           6. Le pipeline CI démarre automatiquement au premier push
