@@ -50,13 +50,12 @@ spec:
           ui:help: 'Domain métier. Ex: finance, shipping, platform'
 
     - title: API specification
-      required: [swaggerUrl]
       properties:
         swaggerUrl:
           title: OpenAPI spec URL
           type: string
           format: uri
-          ui:help: 'URL directe vers la spécification OpenAPI YAML ou JSON utilisée pour générer le serveur.'
+          ui:help: 'Requis pour la génération de code (openapi-generator). URL directe vers la spécification OpenAPI YAML ou JSON. Peut être omis si apiRef est renseigné et que vous implémentez les routes manuellement.'
         apiRef:
           title: Existing API entity reference
           type: string

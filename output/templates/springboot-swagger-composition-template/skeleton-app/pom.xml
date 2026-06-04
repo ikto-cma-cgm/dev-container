@@ -26,7 +26,9 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <openapi-generator.version>7.10.0</openapi-generator.version>
         <sonar.exclusions>**/*.xml</sonar.exclusions>
+{%- if values.swaggerUrl %}
         <openapi.spec.source.url>${{ values.swaggerUrl }}</openapi.spec.source.url>
+{%- endif %}
     </properties>
 
     <dependencyManagement>
@@ -184,6 +186,7 @@
                     <propertyFileWillBeOverwritten>true</propertyFileWillBeOverwritten>
                 </configuration>
             </plugin>
+{%- if values.swaggerUrl %}
             <plugin>
                 <groupId>org.openapitools</groupId>
                 <artifactId>openapi-generator-maven-plugin</artifactId>
@@ -214,6 +217,7 @@
                     </execution>
                 </executions>
             </plugin>
+{%- endif %}
         </plugins>
     </build>
 </project>

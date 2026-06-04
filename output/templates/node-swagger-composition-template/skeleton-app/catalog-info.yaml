@@ -64,6 +64,15 @@ spec:
   lifecycle: experimental
   owner: ${{ values.owner }}
   system: ${{ values.system }}
+{%- if values.swaggerUrl %}
   definition:
     $text: ${{ values.swaggerUrl }}
+{%- else %}
+  definition: |
+    openapi: "3.0.3"
+    info:
+      title: ${{ values.name }} API
+      version: "1.0.0"
+    paths: {}
+{%- endif %}
 {%- endif %}
