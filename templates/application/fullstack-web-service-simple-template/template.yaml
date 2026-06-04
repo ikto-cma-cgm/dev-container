@@ -69,6 +69,8 @@ spec:
           ui:options:
             allowedHosts:
               - github.com
+              - gitlab.com
+              - gitlab.cma-cgm.com
             allowedOwners:
               - ikto-cma-cgm
           description: GitHub repository for the monorepo
@@ -207,9 +209,10 @@ spec:
           runScheduled: false
           scheduleCron: '0 2 * * *'
 
-    # 6. Publish to GitHub
-    - id: publish
+    # 6. Publish (GitHub or GitLab based on form choice)
+    - id: publish-github
       name: Publish Monorepo to GitHub
+      if: ${{ 'github.com' in parameters.repoUrl }}
       action: publish:github
       input:
         description: ${{ parameters.description }}
@@ -227,30 +230,31 @@ spec:
           - backstage
           - ${{ parameters.name }}
 
-    # 7. Register in Backstage catalog
-    - id: register
-      name: Register in Backstage Catalog
-      action: catalog:register
+    - id: publish-gitlab
+      name: Publish Monorepo to GitLab
+      if: ${{ 'github.com' not in parameters.repoUrl }}
+      action: publish:gitlab
       input:
-        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl | replace('/tree/', '/blob/') }}
-        catalogInfoPath: /catalog-info.yaml
+        description: ${{ parameters.description }}
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+        repoVisibility: private
+        gitAuthorName: ${{ user.entity.metadata.name }}
+        gitAuthorEmail: ${{ user.entity.spec.profile.email }}
 
+    # 7. Register in Backstage catalog
   output:
     links:
       - title: Repository
-        url: ${{ steps.publish.output.remoteUrl }}
+        url: ${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }}
         icon: github
 
-      - title: Open in Backstage Catalog
-        url: ${{ steps.register.output.catalogInfoUrl }}
-        icon: catalog
-
       - title: Clone Repository
-        url: ${{ steps.publish.output.cloneUrl }}
+        url: ${{ steps['publish-github'].output.cloneUrl || steps['publish-gitlab'].output.cloneUrl }}
         icon: download
 
       - title: View CI/CD Pipeline
-        url: ${{ steps.publish.output.remoteUrl }}/actions
+        url: ${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }}/actions
         icon: build
 
     text:
@@ -274,7 +278,7 @@ spec:
           ## Quick Start
 
           ```bash
-          git clone ${{ steps.publish.output.cloneUrl }}
+          git clone ${{ steps['publish-github'].output.cloneUrl || steps['publish-gitlab'].output.cloneUrl }}
           cd ${{ parameters.name }}
           npm install
           npm run dev

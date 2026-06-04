@@ -45,6 +45,8 @@ spec:
           ui:options:
             allowedHosts:
               - github.com
+              - gitlab.com
+              - gitlab.cma-cgm.com
 
     - title: 🔔 Configuration de la Notification
       description: Personnalisez le message de notification par défaut
@@ -124,8 +126,9 @@ spec:
           includeTests: ${{ parameters.includeTests }}
           owner: ${{ user.entity.metadata.name }}
 
-    - id: publish
-      name: Créer le Repository
+    - id: publish-github
+      name: Créer le Repository sur GitHub
+      if: ${{ 'github.com' in parameters.repoUrl }}
       action: publish:github
       input:
         repoUrl: ${{ parameters.repoUrl }}
@@ -133,23 +136,23 @@ spec:
         description: ${{ parameters.description }}
         repoVisibility: public
 
-    - id: register
-      name: Enregistrer dans le Catalog
-      action: catalog:register
+    - id: publish-gitlab
+      name: Créer le Repository sur GitLab
+      if: ${{ 'github.com' not in parameters.repoUrl }}
+      action: publish:gitlab
       input:
-        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
-        catalogInfoPath: '/catalog-info.yaml'
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+        description: ${{ parameters.description }}
+        repoVisibility: public
 
   output:
     links:
       - title: 🎉 Ouvrir le Repository
-        url: ${{ steps.publish.output.remoteUrl }}
-      - title: 📦 Voir dans le Catalog
-        icon: catalog
-        url: /catalog/default/component/${{ parameters.projectName }}
+        url: ${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }}
       - title: 🔔 Tester la Notification
         icon: code
-        url: ${{ steps.publish.output.remoteUrl }}/blob/main/README.md#-quick-start
+        url: ${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }}/blob/main/README.md#-quick-start
     text:
       - title: ✅ Service de Notification Créé!
         content: |
@@ -159,7 +162,7 @@ spec:
 
           **1. Cloner le repository**
           ```bash
-          git clone ${{ steps.publish.output.remoteUrl }}
+          git clone ${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }}
           cd ${{ parameters.projectName }}
           ```
 

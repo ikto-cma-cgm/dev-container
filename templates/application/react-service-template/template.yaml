@@ -61,6 +61,8 @@ spec:
           ui:options:
             allowedHosts:
               - github.com
+              - gitlab.com
+              - gitlab.cma-cgm.com
             allowedOwners:
               - ikto-cma-cgm
             allowedRepos: []
@@ -333,9 +335,10 @@ spec:
           # React specific build command might be needed if not standard 'npm run build'
           buildCommand: 'npm run build'
 
-    # 3. Create the GitHub repository
-    - id: publish
+    # 3. Create the repository (GitHub or GitLab based on form choice)
+    - id: publish-github
       name: Publish to GitHub
+      if: ${{ 'github.com' in parameters.repoUrl }}
       action: publish:github
       input:
         description: ${{ parameters.description }}
@@ -353,65 +356,31 @@ spec:
           - frontend
           - ${{ parameters.name }}
 
-    # 3. Register the component in Backstage catalog
-    - id: register
-      name: Register in Backstage Catalog
-      action: catalog:register
+    - id: publish-gitlab
+      name: Publish to GitLab
+      if: ${{ 'github.com' not in parameters.repoUrl }}
+      action: publish:gitlab
       input:
-        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl | replace('/tree/', '/blob/') }}
-        catalogInfoPath: /catalog-info.yaml
+        description: ${{ parameters.description }}
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: ${{ parameters.defaultBranch }}
+        repoVisibility: private
+        gitAuthorName: ${{ user.entity.metadata.name }}
+        gitAuthorEmail: ${{ user.entity.spec.profile.email }}
 
-    # 4. Create initial labels
-    # Note: The github:issues:label:create action requires additional setup
-    # See: https://github.com/ikto-cma-cgm/backstage/tree/main/templates/integration/cicd-service-template/skeleton/react/${{ parameters.ciProvider }}
-    # - id: create-labels
-    #   name: Create GitHub Labels
-    #   action: github:issues:label:create
-    #   input:
-    #     repoUrl: ${{ parameters.repoUrl }}
-    #     labels:
-    #       - name: bug
-    #         color: d73a4a
-    #         description: Something isn't working
-    #       - name: enhancement
-    #         color: a2eeef
-    #         description: New feature or request
-    #       - name: documentation
-    #         color: 0075ca
-    #         description: Documentation improvements
-    #       - name: ui/ux
-    #         color: e99695
-    #         description: User interface and experience
-    #       - name: performance
-    #         color: d4c5f9
-    #         description: Performance improvements
-    #       - name: security
-    #         color: ee0701
-    #         description: Security-related issues
-    #       - name: dependencies
-    #         color: 0366d6
-    #         description: Dependencies updates
-    #       - name: good-first-issue
-    #         color: 7057ff
-    #         description: Good for newcomers
-
-  # Output to show the user
+    # 3. Register the component in Backstage catalog
   output:
     links:
       - title: Repository
-        url: ${{ steps.publish.output.remoteUrl }}
+        url: ${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }}
         icon: github
 
-      - title: Open in Backstage Catalog
-        url: ${{ steps.register.output.catalogInfoUrl }}
-        icon: catalog
-
       - title: Clone Repository
-        url: ${{ steps.publish.output.cloneUrl }}
+        url: ${{ steps['publish-github'].output.cloneUrl || steps['publish-gitlab'].output.cloneUrl }}
         icon: download
 
       - title: View CI/CD Pipeline
-        url: ${{ steps.publish.output.remoteUrl }}/actions
+        url: ${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }}/actions
         icon: build
 
     text:
@@ -431,7 +400,7 @@ spec:
 
           1. **Clone the repository:**
              ```bash
-             git clone ${{ steps.publish.output.cloneUrl }}
+             git clone ${{ steps['publish-github'].output.cloneUrl || steps['publish-gitlab'].output.cloneUrl }}
              cd ${{ parameters.name }}
              ```
 
@@ -486,9 +455,8 @@ spec:
 
           ## Resources
 
-          - [Repository](${{ steps.publish.output.remoteUrl }})
-          - [Backstage Catalog](${{ steps.register.output.catalogInfoUrl }})
-          - [CI/CD Pipeline](${{ steps.publish.output.remoteUrl }}/actions)
+          - [Repository](${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }})
+          - [CI/CD Pipeline](${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }}/actions)
           - [Next.js Documentation](https://nextjs.org/docs)
 
           ## Support
