@@ -4,16 +4,12 @@ ${{ values.description }}
 
 ## Overview
 
-Ce service suit une approche OpenAPI-first. La spécification est consommée depuis `${{ values.swaggerUrl }}` lors du build Maven et utilisée pour générer les interfaces Spring Boot via `openapi-generator-maven-plugin`.
+Ce service suit une approche OpenAPI-first. La spécification OpenAPI est récupérée depuis l'entité API `${{ values.apiRef }}` lors du build Maven et utilisée pour générer les interfaces Spring Boot via `openapi-generator-maven-plugin`.
 
 ## Catalog entities
 
 - `Component`: service runtime Spring Boot
-{%- if values.apiRef %}
 - API liée : `${{ values.apiRef }}` (entité API externe — source de vérité dans son propre repo)
-{%- else %}
-- `API` : contrat OpenAPI exposé par le service (`${{ values.name }}-api`), définition résolue depuis `${{ values.swaggerUrl }}`
-{%- endif %}
 
 ## Getting started
 

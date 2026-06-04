@@ -50,21 +50,16 @@ spec:
           ui:help: 'Domain métier. Ex: finance, shipping, platform'
 
     - title: API specification
+      required: [apiRef]
       properties:
-        swaggerUrl:
-          title: OpenAPI spec URL
-          type: string
-          format: uri
-          description: 'URL directe vers le fichier YAML ou JSON. GitHub : raw.githubusercontent.com uniquement — pas api.github.com, pas github.com/…/blob/…'
-          ui:help: 'Requis pour la génération de code Maven (openapi-generator). Exemple : https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{spec.yaml}. Peut être omis si apiRef est renseigné et que vous implémentez les interfaces manuellement.'
         apiRef:
-          title: Existing API entity reference
+          title: API entity
           type: string
           ui:field: EntityPicker
           ui:options:
             catalogFilter:
               - kind: API
-          ui:help: 'Entité API existante dans le Catalog à lier à ce service (ex: API créée via le template OpenAPI Specification). Si renseigné, ce service déclare providesApis vers cette entité au lieu d''en créer une embarquée. Laisser vide pour créer une entité API dans ce repo.'
+          ui:help: 'Entité API existante dans le Catalog (créée via le template OpenAPI Specification). La spec OpenAPI sera récupérée depuis le repo associé.'
 
     - title: Java configuration
       required: [packageName]
@@ -182,7 +177,8 @@ spec:
           owner: ${{ parameters.owner }}
           system: ${{ parameters.system }}
           domain: ${{ parameters.domain }}
-          swaggerUrl: ${{ parameters.swaggerUrl }}
+          apiRef: ${{ parameters.apiRef }}
+          apiEntityName: ${{ parameters.apiRef.split('/')[1] }}
           javaVersion: ${{ parameters.javaVersion }}
           javaTool: ${{ parameters.javaTool }}
           groupId: ${{ parameters.groupId }}
@@ -195,7 +191,6 @@ spec:
           apiLead: ${{ parameters.apiLead }}
           apiFactory: ${{ parameters.apiFactory }}
           apiDomainArchitectural: ${{ parameters.apiDomainArchitectural }}
-          apiRef: ${{ parameters.apiRef }}
           repoProvider: ${{ parameters.repoProvider }}
           repoOwner: ${{ parameters.repoOwner }}
           gitlabHost: ${{ parameters.gitlabHost }}
