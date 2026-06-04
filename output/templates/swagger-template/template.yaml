@@ -155,15 +155,36 @@ spec:
         defaultBranch: main
         description: ${{ parameters.description }}
 
+    - id: register-catalog-github
+      name: Register in catalog (GitHub)
+      if: ${{ parameters.repoProvider === 'github' }}
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish-github'].output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+
+    - id: register-catalog-gitlab
+      name: Register in catalog (GitLab)
+      if: ${{ parameters.repoProvider === 'gitlab' }}
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish-gitlab'].output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+
   output:
     links:
       - title: Repository
         url: ${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }}
+      - title: Open in Catalog
+        icon: catalog
+        url: ${{ steps['register-catalog-github'].output.entityRef || steps['register-catalog-gitlab'].output.entityRef }}
     text:
       - title: Next Steps
         content: |
-          Spécification OpenAPI **${{ parameters.name }}** créée.
+          Spécification OpenAPI **${{ parameters.name }}** créée et enregistrée dans le Catalog.
           1. Clone : `git clone ${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }}`
           2. Éditez `openapi.yaml` pour définir votre contrat API
-          3. La spécification sera visible dans le Catalog sous l'entité API **${{ parameters.name }}**
-          4. Référencez cette API depuis un service avec `providesApis: [${{ parameters.name }}]`
+          3. L'entité API **${{ parameters.name }}** est visible dans le Catalog
+          4. Pour générer un service depuis cette spec, utilisez le template **Spring Boot with OpenAPI Spec** ou **Node.js with OpenAPI Spec** en renseignant :
+             - **OpenAPI spec URL** : URL raw vers `openapi.yaml` dans ce repo
+             - **Existing API entity reference** : `${{ parameters.name }}`

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+src/generated/
+.env
+.env.*
+.npm/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.DS_Store
