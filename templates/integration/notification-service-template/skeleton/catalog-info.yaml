@@ -17,4 +17,4 @@ spec:
   owner: ${{ values.owner }}
   system: notifications
   dependsOn:
-    - component:chatbot
+    - component:default/chatbot

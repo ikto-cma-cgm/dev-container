@@ -29,7 +29,7 @@ spec:
   {% if values.system %}system: ${{ values.system }}{% endif %}
   dependsOn:
     {%- if values.enableWebdriverIO %}
-    - resource:webdriverio-e2e-testing
+    - resource:default/webdriverio-e2e-testing
     {%- endif %}
     {%- if values.enableSonarQube %}
     - resource:sonarqube-quality-gate
