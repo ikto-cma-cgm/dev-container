@@ -50,14 +50,13 @@ spec:
           ui:help: 'Domain métier. Ex: finance, shipping, platform'
 
     - title: API specification
-      required: [swaggerUrl]
       properties:
         swaggerUrl:
           title: OpenAPI spec URL
           type: string
           format: uri
           description: 'URL directe vers le fichier YAML ou JSON. GitHub : raw.githubusercontent.com uniquement — pas api.github.com, pas github.com/…/blob/…'
-          ui:help: 'Exemple GitHub : https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{chemin-vers-spec.yaml}'
+          ui:help: 'Requis pour la génération de code Maven (openapi-generator). Exemple : https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{spec.yaml}. Peut être omis si apiRef est renseigné et que vous implémentez les interfaces manuellement.'
         apiRef:
           title: Existing API entity reference
           type: string

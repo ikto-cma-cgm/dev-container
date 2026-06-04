@@ -7,9 +7,11 @@
     "node": "${{ values.nodeVersion }}"
   },
   "scripts": {
+{%- if values.swaggerUrl %}
     "fetch-spec": "curl -fsSL ${{ values.swaggerUrl }} -o src/openapi.yaml",
     "generate-api": "openapi-generator-cli generate -i src/openapi.yaml -g typescript-express-server -o src/generated",
     "prebuild": "npm run fetch-spec && npm run generate-api",
+{%- endif %}
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
