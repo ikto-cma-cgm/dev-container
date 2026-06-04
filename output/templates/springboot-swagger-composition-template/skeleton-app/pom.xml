@@ -195,8 +195,10 @@
                         <configuration>
 {%- if values.repoProvider === 'github' %}
                             <inputSpec>https://raw.githubusercontent.com/${{ values.repoOwner }}/${{ values.apiEntityName }}/main/openapi.yaml</inputSpec>
+                            <auth>Authorization:Bearer ${env.GITHUB_TOKEN}</auth>
 {%- else %}
                             <inputSpec>https://${{ values.gitlabHost }}/${{ values.repoOwner }}/${{ values.apiEntityName }}/-/raw/main/openapi.yaml</inputSpec>
+                            <auth>PRIVATE-TOKEN:${env.GITLAB_TOKEN}</auth>
 {%- endif %}
                             <generatorName>spring</generatorName>
                             <apiPackage>${{ values.packageName }}.api.controller</apiPackage>

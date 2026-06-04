@@ -8,9 +8,9 @@
   },
   "scripts": {
 {%- if values.repoProvider === 'github' %}
-    "fetch-spec": "curl -fsSL https://raw.githubusercontent.com/${{ values.repoOwner }}/${{ values.apiEntityName }}/main/openapi.yaml -o src/openapi.yaml",
+    "fetch-spec": "curl -fsSL -H \"Authorization: Bearer $GITHUB_TOKEN\" https://raw.githubusercontent.com/${{ values.repoOwner }}/${{ values.apiEntityName }}/main/openapi.yaml -o src/openapi.yaml",
 {%- else %}
-    "fetch-spec": "curl -fsSL https://${{ values.gitlabHost }}/${{ values.repoOwner }}/${{ values.apiEntityName }}/-/raw/main/openapi.yaml -o src/openapi.yaml",
+    "fetch-spec": "curl -fsSL -H \"PRIVATE-TOKEN: $GITLAB_TOKEN\" https://${{ values.gitlabHost }}/${{ values.repoOwner }}/${{ values.apiEntityName }}/-/raw/main/openapi.yaml -o src/openapi.yaml",
 {%- endif %}
     "generate-api": "openapi-generator-cli generate -i src/openapi.yaml -g typescript-express-server -o src/generated",
     "prebuild": "npm run fetch-spec && npm run generate-api",

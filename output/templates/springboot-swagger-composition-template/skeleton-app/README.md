@@ -13,8 +13,14 @@ Ce service suit une approche OpenAPI-first. La spécification OpenAPI est récup
 
 ## Getting started
 
+> **Prérequis** : le repo de la spec OpenAPI (`${{ values.apiEntityName }}`) est privé.
+> Exportez votre Personal Access Token avant de builder :
+> ```bash
+> export GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+> ```
+
 ```bash
-mvn clean install       # génère les interfaces API depuis la spec
+mvn clean install       # télécharge la spec et génère les interfaces API
 mvn spring-boot:run -Plocal   # démarre en mode développement
 ```
 

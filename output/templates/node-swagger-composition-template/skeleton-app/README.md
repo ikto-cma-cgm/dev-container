@@ -13,6 +13,12 @@ Ce service suit une approche OpenAPI-first. La spécification OpenAPI est récup
 
 ## Getting started
 
+> **Prérequis** : le repo de la spec OpenAPI (`${{ values.apiEntityName }}`) est privé.
+> Exportez votre Personal Access Token avant de builder :
+> ```bash
+> export GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+> ```
+
 ```bash
 npm install
 npm run build   # télécharge la spec et génère le code serveur
