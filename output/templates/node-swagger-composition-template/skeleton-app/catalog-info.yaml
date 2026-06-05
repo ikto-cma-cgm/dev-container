@@ -26,5 +26,16 @@ spec:
   owner: ${{ values.owner }}
   system: ${{ values.system }}
   domain: ${{ values.domain }}
+  dependsOn:
+    - api:${{ values.apiEntityName }}
   providesApis:
     - ${{ values.apiRef }}
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: ${{ values.system }}
+  description: System grouping for composable template ${{ values.name }}
+spec:
+  owner: ${{ values.owner }}
+  domain: ${{ values.domain }}

@@ -3,7 +3,7 @@ applyTo: "**"
 ---
 # CMA CGM Backstage Template — Conventions & Standards
 
-Référence complète pour créer et valider des Software Templates (Golden Paths) sur le Developer Portal CMA CGM. Toute modification doit passer les 19 règles du linter **et** respecter les standards de compliance du Catalog.
+Référence complète pour créer et valider des Software Templates (Golden Paths) sur le Developer Portal CMA CGM. Toute modification doit passer les règles du linter (R01–R19, règles Composable C01–C05, règles ADR-R1/ADR-R3) **et** respecter les standards de compliance du Catalog.
 
 ---
 
@@ -38,7 +38,17 @@ Référence complète pour créer et valider des Software Templates (Golden Path
 
 ---
 
-## 19 Règles du linter (R01–R19)
+## Règles du linter
+
+Le linter couvre :
+
+- **R01–R19** : standards unitaires communs
+- **C01–C05** : standards Composable (orchestrateurs)
+- **ADR-R1, ADR-R3** : gouvernance ADR-0001
+
+> Les règles Composable ne s'appliquent qu'aux orchestrateurs composables. Les templates unitaires les passent en SKIP. C05 est une vérification sémantique (manual review).
+
+### 19 Règles unitaires (R01–R19)
 
 ### Identité (R01–R07)
 
@@ -85,6 +95,23 @@ Préfixes `${{ }}` autorisés : `values.`, `parameters.`, `steps[`, `steps.`, `s
 | R17 | Tous les step `id` suivent le format `verb-object` kebab-case |
 | R18 | `spec.output.links` contient au moins un lien |
 | R19 | `spec.output.text` contient au moins un bloc texte |
+
+### Composable (C01–C05)
+
+| Règle | Exigence |
+|---|---|
+| C01 | Chaque `fetch:template` distant est pin sur une ref immuable (tag SemVer ou SHA), jamais `main`/`master` |
+| C02 | Le `catalog-info.yaml` généré contient un document `kind: System` avec `metadata.name`, `metadata.description`, `spec.owner`, `spec.domain` |
+| C03 | Chaque `Component` généré déclare `spec.system` et `spec.dependsOn` |
+| C04 | Aucun duplicate fetch de skeleton (pas deux `fetch:template` vers le même skeleton) |
+| C05 | Les paramètres de liaison inter-skeletons sont cohérents (revue manuelle) |
+
+### ADR-0001 (ADR-R1, ADR-R3)
+
+| Règle | Exigence |
+|---|---|
+| ADR-R1 | Le repository du template est versionné avec un tag SemVer |
+| ADR-R3 | Les valeurs `spec.lifecycle` des entités générées sont valides (`experimental`, `production`, `deprecated`) |
 
 ---
 
@@ -305,3 +332,10 @@ En plus du linter local (`./scripts/lint.sh`), tu peux utiliser l'action **Valid
 3. Coller l'URL complète du dossier template (GitHub/GitLab)
 4. ⚠️ Le nom de branche ne doit **pas** contenir de slashes — utiliser `main`, pas `feat/my-feature`
 5. Lancer → rapport complet avec numéros de règle et corrections
+
+Lint local :
+
+```bash
+./scripts/lint.sh <template-path>
+./scripts/lint.sh --only Composable <template-path>
+```

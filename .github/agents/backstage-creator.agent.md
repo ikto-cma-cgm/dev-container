@@ -318,7 +318,7 @@ spec:
   system: ${{ values.system }}
 ```
 
-`spec.system` is mandatory — without it the service is invisible in filtered Catalog views. Do NOT add `spec.domain`: it is not part of the Backstage Component spec and must not appear in the skeleton `catalog-info.yaml`. The `domain` template parameter is informational only.
+`spec.system` and `spec.domain` are mandatory for Catalog placement in CMA CGM standards. Keep both propagated from template parameters to generated `catalog-info.yaml`.
 Remove Jenkins/SonarQube annotations if the provider said no in Group F.
 
 ### 3.6 — skeleton/README.md
@@ -456,7 +456,7 @@ Add extra parameter groups after these two, matching the configurability level.
 
 After generating template.yaml, verify that every ${{ values.xxx }} across all skeleton files is passed in the fetch-skeleton step values block.
 
-Applied rules: R01, R02, R03, R04, R05, R06, R07, R08, R09, R10, R11, R17, R18, R19.
+Applied rules: R01–R19, C01–C05 (for composable templates), ADR-R1, ADR-R3.
 
 ---
 
@@ -469,17 +469,17 @@ Then run these checks. Report only problems:
 1. File count: list skeleton/ recursively, confirm ≥ 14 files
 2. Skeleton coherence: every ${{ values.xxx }} in every skeleton file is present in fetch-skeleton values.
 3. Tests validity: no missing import, no missing package entry, tests coherent with source code.
-4. 19-rule compliance: flag any violation.
+4. Linter-rule compliance: flag any violation (R01–R19, plus composable/ADR when applicable).
 5. CMA CGM compliance in skeleton/catalog-info.yaml:
     - spec.system present with ${{ values.system }}
-    - spec.domain absent (not a valid Backstage Component field)
+    - spec.domain present and coherent with Catalog placement standards
     - annotations.backstage.io/techdocs-ref: dir:.
     - lifecycle: experimental
     - metadata.links contains at least the repo link
 
 If everything is clean, report:
 
-"Skeleton complete: source code, tests, quality config, CI/CD, TechDocs, catalog. 19 rules respected.
+"Skeleton complete: source code, tests, quality config, CI/CD, TechDocs, catalog. Applicable linter rules respected.
 
 Run local lint:
   ./scripts/lint.sh <template-name>/

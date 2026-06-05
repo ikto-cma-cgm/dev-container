@@ -5,6 +5,8 @@ applyTo: "**"
 
 Standards généralisés pour créer, reviewer et maintenir des Software Templates Backstage CMA CGM, issus de l'analyse comparative des templates unitaires et composites.
 
+Ce document couvre les patterns de structure et d'assemblage. Pour les règles d'audit Composable (C01–C05, ADR-R1, ADR-R3), se référer aussi à `mounted/documentation/docs/providing/composable-service-standards.md` et `.../linter-rules.md`.
+
 ---
 
 ## 1. Standards communs (tous templates)
@@ -282,7 +284,7 @@ key: value-b
 - [ ] Steps : fetch → publish (2 providers conditionnels) → register (2 providers conditionnels)
 - [ ] Output : links + text avec `||` pour dual provider
 - [ ] `docs/index.md` + `mkdocs.yml` du template lui-même
-- [ ] Les 19 règles du linter (conventions.instructions.md)
+- [ ] Les règles du linter applicables (R01–R19 + C01–C05 + ADR-R1/ADR-R3 selon le type de template)
 
 ### Pour un template composite
 - [ ] Tout ce qui précède, PLUS :

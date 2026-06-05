@@ -2,6 +2,7 @@ import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, basename, relative } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { execSync } from 'child_process';
 import yaml from 'js-yaml';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -28,6 +29,13 @@ const REQUIRED_ANNOTATIONS = config.skeleton.requiredAnnotations;
 const EXPECTED_LIFECYCLE = config.skeleton.lifecycle;
 const ALLOWED_EXPR_PREFIXES = config.skeleton.allowedExpressionPrefixes;
 const SKELETON_DIR_PATTERNS = config.skeleton.directoryPatterns || ['skeleton'];
+const COMPOSABLE_MIN_FETCH_STEPS = config.composable?.minFetchTemplateSteps ?? 2;
+const COMPOSABLE_FORBIDDEN_MOVING_REFS = config.composable?.forbiddenMovingRefs ?? ['main', 'master'];
+const COMPOSABLE_ACCEPTED_REF_PATTERNS = (config.composable?.acceptedRefPatterns || [])
+  .map((p) => new RegExp(p));
+const ADR_VALID_LIFECYCLE_VALUES = config.adr?.validLifecycleValues ?? ['experimental', 'production', 'deprecated'];
+const ADR_SEMVER_TAG_PATTERNS = (config.adr?.semverTagPatterns || [])
+  .map((p) => new RegExp(p));
 
 const KEBAB_CASE = /^[a-z][a-z0-9-]*[a-z0-9]$/;
 const EMOJI_REGEX = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}]/u;
@@ -64,6 +72,22 @@ function getAllProperties(parameters) {
   return all;
 }
 
+function getFetchTemplateSteps(data) {
+  const steps = data?.spec?.steps || [];
+  return steps.filter((s) => s?.action === 'fetch:template');
+}
+
+function isRemoteTemplateUrl(url) {
+  if (typeof url !== 'string') return false;
+  return /^https?:\/\//.test(url) || /^git@/.test(url);
+}
+
+function extractRefFromUrl(url) {
+  if (typeof url !== 'string') return null;
+  const match = url.match(/[?&]ref=([^&#]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 // ─── Skeleton directory discovery ────────────────────────────────────────────
 
 // Simple glob matcher: '*' as wildcard, anchored to full name.
@@ -92,6 +116,13 @@ function findSkeletonDirs(templateDir) {
     }
   }
   return found;
+}
+
+function isComposableTemplate(data, dir) {
+  const fetchSteps = getFetchTemplateSteps(data);
+  const hasMultipleFetches = fetchSteps.length >= COMPOSABLE_MIN_FETCH_STEPS;
+  const hasPreassembledSkeletons = findSkeletonDirs(dir).some((s) => s.name !== 'skeleton');
+  return hasMultipleFetches || hasPreassembledSkeletons;
 }
 
 // ─── Rules ───────────────────────────────────────────────────────────────────
@@ -289,6 +320,166 @@ function r19_output_text(data) {
   return { status: 'PASS' };
 }
 
+function c01_pinned_refs(data, dir) {
+  if (!isComposableTemplate(data, dir)) return { status: 'SKIP', detail: 'not a composable template' };
+
+  const fetchSteps = getFetchTemplateSteps(data);
+  const remoteSteps = fetchSteps.filter((s) => isRemoteTemplateUrl(s?.input?.url));
+  if (remoteSteps.length === 0) return { status: 'SKIP', detail: 'no remote fetch:template URLs (pre-assembled variant)' };
+
+  const issues = [];
+  for (const step of remoteSteps) {
+    const id = step?.id || '(missing id)';
+    const url = step?.input?.url;
+    const ref = extractRefFromUrl(url);
+    if (!ref) {
+      issues.push(`${id}: missing ?ref= in ${url}`);
+      continue;
+    }
+    if (ref.includes('${{')) {
+      issues.push(`${id}: dynamic ref "${ref}" is not immutable`);
+      continue;
+    }
+    if (COMPOSABLE_FORBIDDEN_MOVING_REFS.includes(ref)) {
+      issues.push(`${id}: moving ref "${ref}" is forbidden`);
+      continue;
+    }
+    const accepted = COMPOSABLE_ACCEPTED_REF_PATTERNS.some((p) => p.test(ref));
+    if (!accepted) issues.push(`${id}: ref "${ref}" is neither SemVer nor commit SHA`);
+  }
+
+  if (issues.length > 0) return { status: 'FAIL', detail: issues.join('; ') };
+  return { status: 'PASS' };
+}
+
+function c02_system_entry(data, dir) {
+  if (!isComposableTemplate(data, dir)) return { status: 'SKIP', detail: 'not a composable template' };
+  const skeletons = findSkeletonDirs(dir).filter((s) => existsSync(join(s.path, 'catalog-info.yaml')));
+  if (skeletons.length === 0) return { status: 'SKIP', detail: 'no catalog-info.yaml in skeleton directories' };
+
+  const issues = [];
+  let hasSystem = false;
+
+  for (const s of skeletons) {
+    const content = readFileSync(join(s.path, 'catalog-info.yaml'), 'utf8');
+    const docs = content.split(/^---\s*$/m);
+    for (const doc of docs) {
+      if (!/\bkind:\s*System\b/.test(doc)) continue;
+      hasSystem = true;
+      if (!/\bmetadata:\s*[\s\S]*\bname:\s*\S+/.test(doc)) issues.push(`${s.name}: System.metadata.name missing`);
+      if (!/\bmetadata:\s*[\s\S]*\bdescription:\s*\S+/.test(doc)) issues.push(`${s.name}: System.metadata.description missing`);
+      if (!/\bspec:\s*[\s\S]*\bowner:\s*\S+/.test(doc)) issues.push(`${s.name}: System.spec.owner missing`);
+      if (!/\bspec:\s*[\s\S]*\bdomain:\s*\S+/.test(doc)) issues.push(`${s.name}: System.spec.domain missing`);
+    }
+  }
+
+  if (!hasSystem) return { status: 'FAIL', detail: 'no kind:System found in generated catalog-info.yaml' };
+  if (issues.length > 0) return { status: 'FAIL', detail: issues.join('; ') };
+  return { status: 'PASS' };
+}
+
+function c03_component_relations(data, dir) {
+  if (!isComposableTemplate(data, dir)) return { status: 'SKIP', detail: 'not a composable template' };
+  const skeletons = findSkeletonDirs(dir).filter((s) => existsSync(join(s.path, 'catalog-info.yaml')));
+  if (skeletons.length === 0) return { status: 'SKIP', detail: 'no catalog-info.yaml in skeleton directories' };
+
+  const issues = [];
+  let componentCount = 0;
+  for (const s of skeletons) {
+    const content = readFileSync(join(s.path, 'catalog-info.yaml'), 'utf8');
+    const docs = content.split(/^---\s*$/m);
+    for (const doc of docs) {
+      if (!/\bkind:\s*Component\b/.test(doc)) continue;
+      componentCount += 1;
+      if (!/\bspec:\s*[\s\S]*\bsystem:\s*\S+/.test(doc)) issues.push(`${s.name}: Component.spec.system missing`);
+      if (!/\bspec:\s*[\s\S]*\bdependsOn:\s*/.test(doc)) {
+        issues.push(`${s.name}: Component.spec.dependsOn missing`);
+        continue;
+      }
+      if (!/\bdependsOn:\s*[\s\S]*-\s*(resource|component|api):/.test(doc)) {
+        issues.push(`${s.name}: dependsOn has no resolvable entity refs`);
+      }
+    }
+  }
+
+  if (componentCount === 0) return { status: 'SKIP', detail: 'no Component entities found' };
+  if (issues.length > 0) return { status: 'FAIL', detail: issues.join('; ') };
+  return { status: 'PASS' };
+}
+
+function c04_no_skeleton_duplication(data, dir) {
+  if (!isComposableTemplate(data, dir)) return { status: 'SKIP', detail: 'not a composable template' };
+  const fetchSteps = getFetchTemplateSteps(data);
+  const normalized = new Map();
+  const duplicates = [];
+
+  for (const step of fetchSteps) {
+    const id = step?.id || '(missing id)';
+    const rawUrl = step?.input?.url;
+    if (typeof rawUrl !== 'string') continue;
+    const norm = rawUrl.replace(/([?&])ref=[^&#]*/g, '').replace(/[?&]$/, '');
+    if (!normalized.has(norm)) {
+      normalized.set(norm, [id]);
+      continue;
+    }
+    normalized.get(norm).push(id);
+  }
+
+  for (const [url, ids] of normalized.entries()) {
+    if (ids.length > 1) duplicates.push(`${url} used by ${ids.join(', ')}`);
+  }
+
+  if (duplicates.length > 0) return { status: 'FAIL', detail: duplicates.join('; ') };
+  return { status: 'PASS' };
+}
+
+function c05_linking_parameters(_data, dir) {
+  if (!_data || !isComposableTemplate(_data, dir)) return { status: 'SKIP', detail: 'not a composable template' };
+  return { status: 'SKIP', detail: 'manual review required (semantic parameter consistency)' };
+}
+
+function adrR1_semver_tag(data, _dir) {
+  const templateName = data?.metadata?.name;
+  let tags = [];
+  try {
+    tags = execSync('git --no-pager tag --list', { encoding: 'utf8' })
+      .split('\n')
+      .map((t) => t.trim())
+      .filter(Boolean);
+  } catch {
+    return { status: 'SKIP', detail: 'git tags unavailable in current environment' };
+  }
+
+  if (tags.length === 0) return { status: 'SKIP', detail: 'no git tags found' };
+
+  const tagMatchesPattern = (tag) => ADR_SEMVER_TAG_PATTERNS.some((p) => p.test(tag));
+  const genericMatch = tags.find((t) => tagMatchesPattern(t));
+  const scopedPattern = templateName ? new RegExp(`^${templateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/v[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$`) : null;
+  const scopedMatch = scopedPattern ? tags.find((t) => scopedPattern.test(t)) : null;
+
+  if (scopedMatch || genericMatch) return { status: 'PASS', detail: `found ${scopedMatch || genericMatch}` };
+  return { status: 'FAIL', detail: 'no SemVer publication tag found (expected vX.Y.Z or <template-name>/vX.Y.Z)' };
+}
+
+function adrR3_lifecycle_values(_data, dir) {
+  const skeletons = findSkeletonDirs(dir).filter((s) => existsSync(join(s.path, 'catalog-info.yaml')));
+  if (skeletons.length === 0) return { status: 'SKIP', detail: 'no skeleton catalog-info.yaml to inspect' };
+
+  const issues = [];
+  for (const s of skeletons) {
+    const content = readFileSync(join(s.path, 'catalog-info.yaml'), 'utf8');
+    const matches = [...content.matchAll(/lifecycle:\s*(\S+)/g)];
+    for (const m of matches) {
+      if (!ADR_VALID_LIFECYCLE_VALUES.includes(m[1])) {
+        issues.push(`${s.name}: lifecycle "${m[1]}" is invalid`);
+      }
+    }
+  }
+
+  if (issues.length > 0) return { status: 'FAIL', detail: issues.join('; ') };
+  return { status: 'PASS' };
+}
+
 // ─── Rule registry ───────────────────────────────────────────────────────────
 
 const RULES = [
@@ -311,7 +502,32 @@ const RULES = [
   { id: 'R17', name: 'step IDs verb-object pattern', fn: (d, _dir) => r17_step_ids(d), category: 'Steps' },
   { id: 'R18', name: 'output has links', fn: (d, _dir) => r18_output_links(d), category: 'Steps' },
   { id: 'R19', name: 'output has text', fn: (d, _dir) => r19_output_text(d), category: 'Steps' },
+  { id: 'C01', name: 'pinned skeleton refs', fn: (d, dir) => c01_pinned_refs(d, dir), category: 'Composable' },
+  { id: 'C02', name: 'system-level catalog entry', fn: (d, dir) => c02_system_entry(d, dir), category: 'Composable' },
+  { id: 'C03', name: 'declared component relations', fn: (d, dir) => c03_component_relations(d, dir), category: 'Composable' },
+  { id: 'C04', name: 'no skeleton duplication', fn: (d, dir) => c04_no_skeleton_duplication(d, dir), category: 'Composable' },
+  { id: 'C05', name: 'consistent linking parameters', fn: (d, dir) => c05_linking_parameters(d, dir), category: 'Composable' },
+  { id: 'ADR-R1', name: 'published under SemVer tag', fn: (d, dir) => adrR1_semver_tag(d, dir), category: 'ADR' },
+  { id: 'ADR-R3', name: 'valid lifecycle value', fn: (d, dir) => adrR3_lifecycle_values(d, dir), category: 'ADR' },
 ];
+
+function parseCliArgs(argv) {
+  const args = [...argv];
+  let only = null;
+  let target = null;
+
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg === '--only') {
+      only = args[i + 1];
+      i += 1;
+      continue;
+    }
+    if (!target) target = arg;
+  }
+
+  return { only, target };
+}
 
 // ─── Discovery ───────────────────────────────────────────────────────────────
 
@@ -374,7 +590,7 @@ function lintTemplate(dir) {
     return [{ id: 'PARSE', name: 'YAML parsing', status: 'FAIL', detail: e.message, category: 'Parse' }];
   }
 
-  return RULES.map(rule => {
+  return ACTIVE_RULES.map(rule => {
     try {
       const result = rule.fn(data, dir);
       return { ...rule, ...result };
@@ -414,7 +630,20 @@ function printResults(templateDir, results, root) {
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 const root = process.cwd();
-const target = process.argv[2];
+const { only, target } = parseCliArgs(process.argv.slice(2));
+let ACTIVE_RULES = RULES;
+
+if (only) {
+  const onlyNorm = only.trim().toLowerCase();
+  if (onlyNorm === 'composable') {
+    ACTIVE_RULES = RULES.filter((r) => r.category === 'Composable' || r.category === 'ADR');
+  } else if (onlyNorm === 'unit') {
+    ACTIVE_RULES = RULES.filter((r) => ['Identity', 'Parameters', 'Skeleton', 'Steps'].includes(r.category));
+  } else {
+    console.error(red(`Unknown --only value "${only}". Supported: Composable, Unit`));
+    process.exit(1);
+  }
+}
 
 let dirs;
 if (target) {
@@ -451,11 +680,12 @@ if (target) {
 }
 
 if (dirs.length === 0) {
-  console.error(red('No templates found. Pass a path: ./scripts/lint.sh example-template/'));
+  console.error(red('No templates found. Pass a path: ./scripts/lint.sh output/templates or ./scripts/lint.sh --only Composable <template-path>'));
   process.exit(1);
 }
 
-console.log(bold(`\nLinting ${dirs.length} template(s) against Service Standards\n`));
+const scopeSuffix = only ? ` [scope: ${only}]` : '';
+console.log(bold(`\nLinting ${dirs.length} template(s) against Service Standards${scopeSuffix}\n`));
 
 let allPassed = true;
 for (const dir of dirs) {

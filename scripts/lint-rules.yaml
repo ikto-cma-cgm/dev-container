@@ -87,3 +87,30 @@ skeleton:
     - '"http'
     - "'' |"
     - '"" |'
+
+composable:
+  # A template is considered composable if it has >= 2 fetch:template steps
+  # OR uses pre-assembled skeleton directories (skeleton-*).
+  minFetchTemplateSteps: 2
+
+  # C01 — refs that are considered moving and therefore forbidden
+  forbiddenMovingRefs:
+    - main
+    - master
+
+  # C01 — accepted immutable ref formats for remote skeleton fetches
+  acceptedRefPatterns:
+    - '^v?[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$' # SemVer tag
+    - '^[0-9a-f]{7,40}$'                                     # commit SHA
+
+adr:
+  # ADR-R3 — valid lifecycle values in generated catalog entities
+  validLifecycleValues:
+    - experimental
+    - production
+    - deprecated
+
+  # ADR-R1 — accepted SemVer tag formats in template repositories
+  semverTagPatterns:
+    - '^v[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$'
+    - '^[a-z0-9-]+-template/v[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$'

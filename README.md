@@ -22,11 +22,11 @@ exactement le même environnement — les mêmes outils, les mêmes versions, le
   devcontainer.json       ← la "recette" de l'environnement
 
 .github/instructions/
-  conventions.instructions.md         ← conventions CMA CGM (R01–R19 + compliance)
+  conventions.instructions.md         ← conventions CMA CGM (R01–R19 + C01–C05 + ADR-R1/ADR-R3)
   template-standards.instructions.md  ← standards unitaires/composites
 
 scripts/
-  lint.sh                 ← linter 19 règles
+  lint.sh                 ← linter templates (unitaires, composable, ADR)
 ```
 
 ### Ce qui est installé automatiquement dans le container
@@ -86,16 +86,17 @@ backstage-cli --version                        # doit afficher la version du CLI
 
 ---
 
-## Tooling — Linter (19 règles CMA CGM)
+## Tooling — Linter (standards CMA CGM)
 
 ```bash
 ./scripts/lint.sh output/templates/node-template   # lint un template spécifique
 ./scripts/lint.sh output/templates                # lint tous les templates dans output/templates
+./scripts/lint.sh --only Composable <template>    # lint C01–C05 + ADR sur un orchestrateur
 ./scripts/lint.sh                                 # lint tous les templates dans templates/
 ```
 
-Le linter vérifie les 19 règles (R01–R19) : nommage, paramètres, structure skeleton, step IDs,
-outputs. Il retourne un code d'erreur non-zéro si des règles échouent — intégrable en CI.
+Le linter vérifie les règles unitaires (R01–R19), composable (C01–C05) et ADR (ADR-R1, ADR-R3).
+Il retourne un code d'erreur non-zéro si des règles échouent — intégrable en CI.
 
 La référence complète des règles est dans
 [.github/instructions/conventions.instructions.md](.github/instructions/conventions.instructions.md).
