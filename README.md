@@ -21,10 +21,9 @@ exactement le même environnement — les mêmes outils, les mêmes versions, le
 .devcontainer/
   devcontainer.json       ← la "recette" de l'environnement
 
-.agent/
-  conventions.md          ← 19 règles CMA CGM
-  create.md               ← guide de création de template
-  review.md               ← guide d'audit de template
+.github/instructions/
+  conventions.instructions.md         ← conventions CMA CGM (R01–R19 + compliance)
+  template-standards.instructions.md  ← standards unitaires/composites
 
 scripts/
   lint.sh                 ← linter 19 règles
@@ -82,7 +81,7 @@ Le fichier `.env` est dans `.gitignore` — il ne sera jamais commité.
 ```bash
 # Dans le terminal intégré VS Code (Ctrl+`)
 backstage-cli --version                        # doit afficher la version du CLI
-./scripts/lint.sh example-template/           # doit afficher le rapport de lint
+./scripts/lint.sh output/templates/node-template   # doit afficher le rapport de lint
 ```
 
 ---
@@ -90,21 +89,22 @@ backstage-cli --version                        # doit afficher la version du CLI
 ## Tooling — Linter (19 règles CMA CGM)
 
 ```bash
-./scripts/lint.sh example-template/     # lint un template spécifique
-./scripts/lint.sh                        # lint tous les templates dans templates/
+./scripts/lint.sh output/templates/node-template   # lint un template spécifique
+./scripts/lint.sh output/templates                # lint tous les templates dans output/templates
+./scripts/lint.sh                                 # lint tous les templates dans templates/
 ```
 
 Le linter vérifie les 19 règles (R01–R19) : nommage, paramètres, structure skeleton, step IDs,
 outputs. Il retourne un code d'erreur non-zéro si des règles échouent — intégrable en CI.
 
-La référence complète des règles est dans [.agent/conventions.md](.agent/conventions.md).
+La référence complète des règles est dans
+[.github/instructions/conventions.instructions.md](.github/instructions/conventions.instructions.md).
 
 ---
 
 ## Comprendre le template exemple
 
-Le fichier [example-template/template.yaml](example-template/template.yaml) est un template
-Backstage complet et commenté. Il montre :
+Les templates dans `output/templates/` sont des exemples complets de templates Backstage. Ils montrent :
 
 1. **`metadata`** — nom, description, tags (ce qui apparaît dans la galerie de templates)
 2. **`parameters`** — les champs du formulaire (générés automatiquement par Backstage)

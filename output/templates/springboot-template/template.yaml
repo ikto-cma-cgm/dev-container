@@ -84,9 +84,9 @@ spec:
           ui:help: 'Version de Spring Cloud.'
 
     - title: Repository platform
-      required: [publishPlatform]
+      required: [repoProvider]
       properties:
-        publishPlatform:
+        repoProvider:
           title: Publish to
           type: string
           enum: ['github', 'gitlab']
@@ -97,28 +97,28 @@ spec:
           ui:help: 'Plateforme de publication du repository (mutuellement exclusif).'
 
     - title: GitHub Information
-      required: [githubOwner]
+      required: [repoOwner]
       properties:
-        githubOwner:
+        repoOwner:
           title: GitHub Owner
           type: string
           default: 'ikto-cma-cgm'
           ui:help: 'Organisation ou utilisateur GitHub propriétaire du repository.'
-      when: ${{ parameters.publishPlatform === 'github' }}
+      when: ${{ parameters.repoProvider === 'github' }}
 
     - title: GitLab Information
-      required: [gitlabNamespace, gitlabHost]
+      required: [repoOwner, gitlabHost]
       properties:
         gitlabHost:
           title: GitLab Host
           type: string
           default: 'gitlab.com'
           ui:help: 'Hôte GitLab. Ex: gitlab.com ou gitlab.cma-cgm.com'
-        gitlabNamespace:
+        repoOwner:
           title: GitLab Namespace
           type: string
           ui:help: 'Espace de noms GitLab pour le projet. Ex: pricing-services'
-      when: ${{ parameters.publishPlatform === 'gitlab' }}
+      when: ${{ parameters.repoProvider === 'gitlab' }}
 
     - title: Docker configuration
       properties:
@@ -153,33 +153,36 @@ spec:
           packageName: ${{ parameters.packageName }}
           springBootVersion: ${{ parameters.springBootVersion }}
           springCloudVersion: ${{ parameters.springCloudVersion }}
+          repoProvider: ${{ parameters.repoProvider }}
+          repoOwner: ${{ parameters.repoOwner }}
+          gitlabHost: ${{ parameters.gitlabHost }}
 
     - id: publish-github
       name: Publish on GitHub
-      if: ${{ parameters.publishPlatform === 'github' }}
+      if: ${{ parameters.repoProvider === 'github' }}
       action: publish:github
       input:
-        repoUrl: github.com?owner=${{ parameters.githubOwner }}&repo=${{ parameters.name }}
+        repoUrl: github.com?owner=${{ parameters.repoOwner }}&repo=${{ parameters.name }}
         description: ${{ parameters.description }}
 
     - id: publish-gitlab
       name: Publish on GitLab
-      if: ${{ parameters.publishPlatform === 'gitlab' }}
+      if: ${{ parameters.repoProvider === 'gitlab' }}
       action: publish:gitlab
       input:
-        repoUrl: ${{ parameters.gitlabHost }}?owner=${{ parameters.gitlabNamespace }}&repo=${{ parameters.name }}
+        repoUrl: ${{ parameters.gitlabHost }}?owner=${{ parameters.repoOwner }}&repo=${{ parameters.name }}
         defaultBranch: main
         description: ${{ parameters.description }}
 
   output:
     links:
       - title: Repository
-        url: "${{ parameters.publishPlatform === 'github' ? steps['publish-github'].output.remoteUrl : steps['publish-gitlab'].output.remoteUrl }}"
+        url: "${{ parameters.repoProvider === 'github' ? steps['publish-github'].output.remoteUrl : steps['publish-gitlab'].output.remoteUrl }}"
     text:
       - title: Next Steps
         content: |
           Service **${{ parameters.name }}** créé avec succès.
-          1. Clone : `git clone ${{ parameters.publishPlatform === 'github' ? steps['publish-github'].output.remoteUrl : steps['publish-gitlab'].output.remoteUrl }}`
+          1. Clone : `git clone ${{ parameters.repoProvider === 'github' ? steps['publish-github'].output.remoteUrl : steps['publish-gitlab'].output.remoteUrl }}`
           2. Installez les dépendances : `mvn clean install`
           3. Lancez localement : `mvn spring-boot:run -Plocal`
           4. Le pipeline CI démarre automatiquement au premier push

@@ -200,7 +200,7 @@
                                 <argument>-fsSL</argument>
                                 <argument>--create-dirs</argument>
                                 <argument>-H</argument>
-{%- if values.repoProvider === 'github' %}
+{%- if values.repoProvider == 'github' %}
                                 <argument>Authorization: Bearer ${env.GITHUB_TOKEN}</argument>
                                 <argument>https://raw.githubusercontent.com/${{ values.repoOwner }}/${{ values.apiEntityName }}/main/openapi.yaml</argument>
 {%- else %}

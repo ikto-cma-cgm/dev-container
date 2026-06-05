@@ -7,7 +7,7 @@ metadata:
     - nodejs
     - backend
   links:
-{%- if values.repoProvider === 'github' %}
+{%- if values.repoProvider == 'github' %}
     - url: https://github.com/${{ values.repoOwner }}/${{ values.name }}
       title: Repository
       icon: github
@@ -25,5 +25,6 @@ spec:
   lifecycle: experimental
   owner: ${{ values.owner }}
   system: ${{ values.system }}
+  domain: ${{ values.domain }}
   providesApis:
     - ${{ values.apiRef }}

@@ -129,10 +129,11 @@ Always generate `skeleton/catalog-info.yaml` with:
 - `annotations.sonarqube.org/project-key` — `cma-cgm:${{ values.name }}`
 - `spec.lifecycle: experimental` (never `production`)
 - `spec.system: ${{ values.system }}`
-- `spec.domain: ${{ values.domain }}`
 - `spec.owner: ${{ values.owner }}`
 - Tags for language and category
-- Links to GitHub repo and Wiki runbook
+- Links to repository
+
+Do NOT include `spec.domain` — it is not a valid Backstage Component spec field. The `domain` template parameter is informational only and must not be propagated to the skeleton catalog-info.yaml.
 
 ### README.md (R15)
 
@@ -146,16 +147,19 @@ Always generate for TechDocs support in the portal.
 
 ## Phase 4 — Steps and output
 
-Use the standard sequence: `fetch-skeleton` → `publish-repo` → `register-catalog`.
+Use the **dual-provider** sequence (R17): `fetch-skeleton` → `publish-github` (if GitHub) | `publish-gitlab` (if GitLab) → `register-catalog-github` | `register-catalog-gitlab`.
 
-All step IDs must be `verb-object` kebab-case (R17).
+All step IDs must be `verb-object` kebab-case (R17). Provider-conditional steps use `if: ${{ parameters.repoProvider === 'github' }}`.
+
+The template must expose a `repoProvider` parameter (enum: `github`, `gitlab`) and a `repoOwner` parameter so the correct publish action is selected at runtime.
 
 Ask the user:
 1. Does the template need additional steps? (e.g. configure a database, set up secrets, run initial migration, install dependencies)
-2. Custom actions (e.g. `fetch:template` for extra scaffolding, `shell:run` for init scripts) should be inserted between `fetch-skeleton` and `publish-repo`.
+2. Custom actions should be inserted between `fetch-skeleton` and the publish steps.
 
 Output must contain:
-- `links` (R18): at least Repository URL and Catalog entity link
+- `links` (R18): Repository URL and Catalog entity link, using `||` to cover both providers:
+  `${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }}`
 - `text` (R19): at least one block with "Next Steps" instructions
 
 ---
@@ -170,7 +174,7 @@ Before generating files, run this checklist internally. Fix any miss before proc
 - [ ] `metadata.title` contains no emoji
 - [ ] `metadata.description` ≤ 200 characters
 - [ ] `spec.owner` is populated
-- [ ] `spec.type` is a valid enum (`service`, `website`, `pipeline`, `component`, `other`, `container`, `hub`, `library`)
+- [ ] `spec.type` is a valid enum (`service`, `website`, `library`, `pipeline`, `testing-tool`, `code-analysis`, `action`)
 - [ ] `metadata.tags` includes at least one category tag (`application`, `integration`, `quality`, `action`)
 - [ ] `metadata.tags` contains no forbidden tags (`one-click`, `golden-path`, `demo`, `advanced`, `simple`)
 
@@ -199,11 +203,14 @@ Before generating files, run this checklist internally. Fix any miss before proc
 
 ### Compliance (beyond linter)
 
-- [ ] `catalog-info.yaml` has `spec.system` and `spec.domain` with `${{ values.* }}`
+- [ ] `catalog-info.yaml` has `spec.system` with `${{ values.system }}` — required
+- [ ] `catalog-info.yaml` does NOT contain `spec.domain` — not a valid Backstage Component field
 - [ ] `catalog-info.yaml` has `jenkins.io/job-full-name` annotation
 - [ ] `catalog-info.yaml` has `sonarqube.org/project-key` annotation
 - [ ] Template is self-contained — `fetch:template` uses `url: ./skeleton`
 - [ ] No reference to another template's skeleton
+- [ ] `repoProvider` and `repoOwner` parameters present (dual-provider pattern)
+- [ ] Output links use `||` operator to cover both GitHub and GitLab providers
 
 After review, output a brief checklist summary showing every rule as ✅ or 🔴 with a note if any need fixing.
 

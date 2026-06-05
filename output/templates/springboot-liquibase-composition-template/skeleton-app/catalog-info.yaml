@@ -20,6 +20,7 @@ spec:
   lifecycle: experimental
   owner: ${{ values.owner }}
   system: ${{ values.system }}
+  domain: ${{ values.domain }}
   dependsOn:
     - resource:default/${{ values.name }}-liquibase-db
 ---
@@ -39,3 +40,4 @@ spec:
   lifecycle: experimental
   owner: ${{ values.owner }}
   system: ${{ values.system }}
+  domain: ${{ values.domain }}
