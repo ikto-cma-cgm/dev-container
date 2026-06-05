@@ -21,8 +21,14 @@ Ce service suit une approche OpenAPI-first. La spécification OpenAPI est récup
 
 ```bash
 npm install
-npm run build   # télécharge la spec et génère le code serveur
+npm run build   # télécharge la spec et génère le code serveur dans src/openapi-generated/
 npm run dev     # démarre en mode développement
+```
+
+Si vous êtes derrière un proxy d'entreprise avec inspection TLS, configurez le certificat racine pour Node.js :
+
+```bash
+export NODE_EXTRA_CA_CERTS=/path/to/corporate-ca.pem
 ```
 
 ## Health check

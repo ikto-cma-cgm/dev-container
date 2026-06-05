@@ -12,7 +12,7 @@
 {%- else %}
     "fetch-spec": "curl -fsSL -H \"PRIVATE-TOKEN: $GITLAB_TOKEN\" https://${{ values.gitlabHost }}/${{ values.repoOwner }}/${{ values.apiEntityName }}/-/raw/main/openapi.yaml -o src/openapi.yaml",
 {%- endif %}
-    "generate-api": "openapi-generator-cli generate -i src/openapi.yaml -g typescript-express-server -o src/generated",
+    "generate-api": "node scripts/generate-api.mjs",
     "prebuild": "npm run fetch-spec && npm run generate-api",
     "build": "tsc",
     "start": "node dist/index.js",

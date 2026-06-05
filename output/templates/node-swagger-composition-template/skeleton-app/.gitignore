@@ -2,6 +2,7 @@ node_modules/
 dist/
 coverage/
 src/generated/
+src/openapi-generated/
 .env
 .env.*
 .npm/

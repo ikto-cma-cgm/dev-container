@@ -15,3 +15,5 @@ spec:
     - ./output/templates/node-swagger-composition-template/template.yaml
     - ./output/templates/springboot-swagger-composition-template/template.yaml
     - ./output/templates/springboot-liquibase-composition-template/template.yaml
+    # Services de démonstration
+    - ./output/demo-services/catalog-info.yaml

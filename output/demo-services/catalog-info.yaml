@@ -1,0 +1,93 @@
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: demo-platform
+  description: Demo domain for local Backstage catalog checks
+spec:
+  owner: platform-team
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: demo-platform-system
+  description: Demo system grouping dev-container generated sample services
+spec:
+  owner: platform-team
+  domain: demo-platform
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: demo-node-service
+  description: Demo service generated from node-template
+spec:
+  type: service
+  lifecycle: experimental
+  owner: platform-team
+  system: demo-platform-system
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: demo-springboot-service
+  description: Demo service generated from springboot-template
+spec:
+  type: service
+  lifecycle: experimental
+  owner: platform-team
+  system: demo-platform-system
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: demo-springboot-liquibase-service
+  description: Demo service generated from springboot-liquibase-template
+spec:
+  type: service
+  lifecycle: experimental
+  owner: platform-team
+  system: demo-platform-system
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: demo-swagger-hip
+  description: Demo service linked to HIP OpenAPI flow
+spec:
+  type: service
+  lifecycle: experimental
+  owner: platform-team
+  system: demo-platform-system
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: demo-node-swagger-composition
+  description: Demo service generated from node-swagger-composition-template
+spec:
+  type: service
+  lifecycle: experimental
+  owner: platform-team
+  system: demo-platform-system
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: demo-springboot-swagger-composition
+  description: Demo service generated from springboot-swagger-composition-template
+spec:
+  type: service
+  lifecycle: experimental
+  owner: platform-team
+  system: demo-platform-system
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: demo-springboot-liquibase-composition
+  description: Demo service generated from springboot-liquibase-composition-template
+spec:
+  type: service
+  lifecycle: experimental
+  owner: platform-team
+  system: demo-platform-system

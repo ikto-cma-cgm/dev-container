@@ -16,7 +16,7 @@ Ce template génère un microservice Node.js TypeScript piloté par une spécifi
 2. renseignez le nom, la description, l'owner et le system
 3. renseignez les métadonnées HIP (api-type, HOPEX code, etc.)
 4. choisissez GitHub ou GitLab comme plateforme de publication
-5. exécutez `npm run build` dans le dépôt généré pour télécharger la spec et générer le code serveur
+5. exécutez `npm run build` dans le dépôt généré pour télécharger la spec et générer le code serveur (dans `src/openapi-generated/`)
 
 ## Lien avec swagger-template
 

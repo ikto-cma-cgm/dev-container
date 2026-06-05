@@ -217,4 +217,4 @@ spec:
           2. Générez l'API : `npm run build` (télécharge la spec et génère le code serveur)
           3. Lancez localement : `npm run dev`
           4. Vérifiez la santé : `curl http://localhost:${{ parameters.port }}/health`
-          5. Implémentez les routes générées dans `src/generated/`
+          5. Implémentez les routes générées dans `src/openapi-generated/`
