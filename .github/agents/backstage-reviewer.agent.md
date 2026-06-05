@@ -162,14 +162,15 @@ Examine le `skeleton/catalog-info.yaml` et vérifie :
 ✓ spec.lifecycle       — "experimental" ✓
 ✓ spec.owner           — utilise ${{ values.owner }} ✓
 ✗ spec.system          — absent — le service sera orphelin dans le Catalog
-✗ spec.domain          — absent — invisible dans les vues par domaine
 ✓ annotations.backstage.io/techdocs-ref — "dir:." ✓
 ✗ annotations.jenkins.io/job-full-name  — absent (CI Jenkins non référencé)
 ✗ annotations.sonarqube.org/project-key — absent (qualité code non référencée)
 ```
 
+> ⚠️ **spec.domain** : ne pas vérifier la présence de `spec.domain` dans le skeleton — ce champ n'est **pas** part du spec Backstage Component/Resource. Le `domain` est un paramètre de template (formulaire) mais ne doit **pas** être propagé dans `catalog-info.yaml`.
+
 Pour chaque champ manquant, explique l'impact opérationnel :
-> "**spec.system** : sans ce champ, le service apparaît sans parent dans la hiérarchie Catalog. Il est exclu des dashboards de System et des vues par domaine — la façon principale dont les équipes découvrent les services chez CMA CGM."
+> "**spec.system** : sans ce champ, le service apparaît sans parent dans la hiérarchie Catalog. Il est exclu des dashboards de System — la façon principale dont les équipes découvrent les services chez CMA CGM."
 >
 > "**jenkins.io/job-full-name** : cette annotation relie la page Catalog du service à son pipeline Jenkins. Sans elle, l'onglet CI n'apparaît pas — les développeurs ne peuvent pas voir l'état des builds depuis le portail."
 

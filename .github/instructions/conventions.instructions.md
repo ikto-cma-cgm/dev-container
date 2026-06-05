@@ -94,7 +94,9 @@ Ces standards s'appliquent au `skeleton/catalog-info.yaml` — c'est-à-dire au 
 
 ### Hiérarchie Catalog obligatoire
 
-Chaque service doit appartenir à un System et un Domain. Sans ces deux champs, il est invisible dans les vues filtrées.
+Chaque service doit appartenir à un System **et** à un Domain.
+
+Le `system` et le `domain` doivent être renseignés dans le skeleton `catalog-info.yaml` pour garantir la navigation complète dans le Catalog (filtres, vues par domaine, dashboards).
 
 ```yaml
 spec:
@@ -102,7 +104,7 @@ spec:
   domain: ${{ values.domain }}   # ← paramètre obligatoire
 ```
 
-Les templates doivent donc inclure `system` et `domain` dans leurs paramètres.
+Les templates doivent inclure `system` et `domain` dans leurs paramètres (required), puis les propager dans le fetch-skeleton.
 
 ### Annotations requises
 
@@ -124,22 +126,19 @@ metadata:
     - <langage>            # ex: java, nodejs, python
     - <catégorie>          # ex: backend, frontend, batch
   links:
-    - url: https://github.com/cma-cgm/${{ values.name }}
+    - url: https://${{ values.repoProvider }}.com/${{ values.repoOwner }}/${{ values.name }}
       title: Repository
-      icon: github
-    - url: https://wiki.cma-cgm.com/${{ values.name }}/runbook
-      title: On-call runbook
-      icon: docs
+      icon: ${{ values.repoProvider }}
   annotations:
     backstage.io/techdocs-ref: dir:.
     jenkins.io/job-full-name: cma-cgm/${{ values.name }}/main
     sonarqube.org/project-key: cma-cgm:${{ values.name }}
 spec:
-  type: service                        # ou website, pipeline, etc.
+  type: service                        # ou website, library, pipeline, testing-tool, code-analysis, action
   lifecycle: experimental              # R14 — toujours experimental dans le skeleton
   owner: ${{ values.owner }}
-  system: ${{ values.system }}         # obligatoire
-  domain: ${{ values.domain }}         # obligatoire
+  system: ${{ values.system }}         # obligatoire — spec Backstage Component
+  domain: ${{ values.domain }}         # obligatoire — hiérarchie Catalog CMA CGM
 ```
 
 ---
@@ -199,7 +198,9 @@ Le but est que chaque template soit entièrement autonome, avec son propre skele
 
 ## Steps standards
 
-Séquence standard : `fetch-skeleton` → `publish-repo` → `register-catalog`
+Séquence standard (dual-provider) : `fetch-skeleton` → `publish-github` | `publish-gitlab` → `register-catalog-github` | `register-catalog-gitlab`
+
+Les conditions `if` s'appuient sur `${{ parameters.repoProvider }}`.
 
 ```yaml
 steps:
@@ -213,35 +214,55 @@ steps:
         description: ${{ parameters.description }}
         owner: ${{ parameters.owner }}
         system: ${{ parameters.system }}
-        domain: ${{ parameters.domain }}
+        repoProvider: ${{ parameters.repoProvider }}
+        repoOwner: ${{ parameters.repoOwner }}
 
-  - id: publish-repo               # R17 : verb-object
-    name: Publish repository
+  - id: publish-github             # R17 : verb-object
+    name: Publish repository (GitHub)
+    if: ${{ parameters.repoProvider === 'github' }}
     action: publish:github
     input:
       allowedHosts: ['github.com']
-      repoUrl: github.com?owner=cma-cgm&repo=${{ parameters.name }}
+      repoUrl: github.com?owner=${{ parameters.repoOwner }}&repo=${{ parameters.name }}
       description: ${{ parameters.description }}
 
-  - id: register-catalog           # R17 : verb-object
-    name: Register in catalog
+  - id: register-catalog-github    # R17 : verb-object
+    name: Register in catalog (GitHub)
+    if: ${{ parameters.repoProvider === 'github' }}
     action: catalog:register
     input:
-      repoContentsUrl: ${{ steps['publish-repo'].output.repoContentsUrl }}
+      repoContentsUrl: ${{ steps['publish-github'].output.repoContentsUrl }}
+      catalogInfoPath: /catalog-info.yaml
+
+  - id: publish-gitlab             # R17 : verb-object
+    name: Publish repository (GitLab)
+    if: ${{ parameters.repoProvider === 'gitlab' }}
+    action: publish:gitlab
+    input:
+      allowedHosts: ['gitlab.com']
+      repoUrl: gitlab.com?owner=${{ parameters.repoOwner }}&repo=${{ parameters.name }}
+      description: ${{ parameters.description }}
+
+  - id: register-catalog-gitlab    # R17 : verb-object
+    name: Register in catalog (GitLab)
+    if: ${{ parameters.repoProvider === 'gitlab' }}
+    action: catalog:register
+    input:
+      repoContentsUrl: ${{ steps['publish-gitlab'].output.repoContentsUrl }}
       catalogInfoPath: /catalog-info.yaml
 
 output:
   links:                           # R18
     - title: Repository
-      url: ${{ steps['publish-repo'].output.remoteUrl }}
+      url: ${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }}
     - title: Open in Catalog
       icon: catalog
-      url: ${{ steps['register-catalog'].output.entityRef }}
+      url: ${{ steps['register-catalog-github'].output.entityRef || steps['register-catalog-gitlab'].output.entityRef }}
   text:                            # R19
     - title: Next Steps
       content: |
         Service **${{ parameters.name }}** créé.
-        1. Clone : `git clone ${{ steps['publish-repo'].output.remoteUrl }}`
+        1. Clone : `git clone ${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }}`
         2. Install : `npm install` (ou équivalent)
         3. Configure les secrets dans le repo Settings
         4. Le pipeline CI démarre automatiquement sur le premier push

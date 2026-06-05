@@ -42,7 +42,7 @@ Extend `scripts/lint-rules.yaml` `validTypes` if a new category is needed.
 Les groupes de paramètres doivent suivre cet ordre :
 
 1. **Service identity** — `name`, `description`, `owner` (required)
-2. **Catalog placement** — `system` (required), `domain` (optional, **template parameter only** — not propagated to `catalog-info.yaml` `spec.domain` since that field is not part of the Backstage Component/Resource spec; use a domain-named `System` instead if needed)
+2. **Catalog placement** — `system` (required), `domain` (required)
 3. **<Domaine> configuration** — paramètres spécifiques au type de service
 4. **Repository destination** — `repoProvider`, `repoOwner` (required)
 
@@ -126,9 +126,10 @@ spec:
   lifecycle: experimental
   owner: ${{ values.owner }}
   system: ${{ values.system }}
+  domain: ${{ values.domain }}
 ```
 
-> Note: `spec.domain` is not part of the Backstage Component spec; do not include it in the skeleton `catalog-info.yaml`. The `domain` template parameter (when present) is informational only.
+> `system` + `domain` are required for CMA CGM Catalog placement and must be propagated into the generated `catalog-info.yaml`.
 
 ### Règles unitaires
 
@@ -209,6 +210,7 @@ spec:
   lifecycle: experimental
   owner: ${{ values.owner }}
   system: ${{ values.system }}
+  domain: ${{ values.domain }}
   dependsOn:
     - resource: ${{ values.name }}-<resource-suffix>
 ---
@@ -224,9 +226,10 @@ spec:
   lifecycle: experimental
   owner: ${{ values.owner }}
   system: ${{ values.system }}
+  domain: ${{ values.domain }}
 ```
 
-> `spec.domain` is intentionally absent — not part of the Backstage Component/Resource spec.
+> For composites, keep `system` and `domain` consistent across generated entities unless there is a justified ownership split.
 
 ### Règles composites
 
@@ -252,16 +255,16 @@ spec:
 
 ---
 
-## 5. Conditions Jinja2 dans skeleton
+## 5. Conditions Nunjucks dans skeleton
 
-Les fichiers skeleton utilisent **Jinja2** (`{% %}`) pour le conditionnement au moment du scaffold. Interpolations simples avec `${{ values.* }}`, branches conditionnelles avec Jinja2.
+Les fichiers skeleton utilisent **Nunjucks** (`{% %}`) pour le conditionnement au moment du scaffold. Interpolations simples avec `${{ values.* }}`, branches conditionnelles avec Nunjucks.
 
 ```yaml
 {# Exemple générique de condition #}
-{% if values.type === 'option-a' -%}
+{% if values.type == 'option-a' -%}
 key: value-a
 {%- endif %}
-{% if values.type === 'option-b' -%}
+{% if values.type == 'option-b' -%}
 key: value-b
 {%- endif %}
 ```

@@ -335,6 +335,34 @@ function findAllTemplateDirs(root) {
   return dirs;
 }
 
+function findTemplateDirsUnder(rootDir) {
+  if (!existsSync(rootDir)) return [];
+  if (existsSync(join(rootDir, 'template.yaml'))) return [rootDir];
+
+  const dirs = [];
+
+  function walk(current) {
+    for (const entry of readdirSync(current)) {
+      if (entry === 'node_modules' || entry === '.git') continue;
+
+      const entryPath = join(current, entry);
+      let isDir;
+      try { isDir = statSync(entryPath).isDirectory(); } catch { continue; }
+      if (!isDir) continue;
+
+      if (existsSync(join(entryPath, 'template.yaml'))) {
+        dirs.push(entryPath);
+        continue;
+      }
+
+      walk(entryPath);
+    }
+  }
+
+  walk(rootDir);
+  return dirs;
+}
+
 // ─── Runner ──────────────────────────────────────────────────────────────────
 
 function lintTemplate(dir) {
@@ -391,11 +419,33 @@ const target = process.argv[2];
 let dirs;
 if (target) {
   const resolved = join(root, target);
-  if (!existsSync(join(resolved, 'template.yaml'))) {
+  if (!existsSync(resolved)) {
+    console.error(red(`Target path does not exist: ${target}`));
+    process.exit(1);
+  }
+
+  let resolvedStat;
+  try {
+    resolvedStat = statSync(resolved);
+  } catch {
+    console.error(red(`Cannot read target path: ${target}`));
+    process.exit(1);
+  }
+
+  if (resolvedStat.isFile()) {
+    if (basename(resolved) !== 'template.yaml') {
+      console.error(red(`Target file must be template.yaml, got: ${target}`));
+      process.exit(1);
+    }
+    dirs = [dirname(resolved)];
+  } else {
+    dirs = findTemplateDirsUnder(resolved);
+  }
+
+  if (dirs.length === 0) {
     console.error(red(`No template.yaml found in ${target}`));
     process.exit(1);
   }
-  dirs = [resolved];
 } else {
   dirs = findAllTemplateDirs(root);
 }

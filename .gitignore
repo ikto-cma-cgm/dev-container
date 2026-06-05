@@ -8,9 +8,11 @@ node_modules/
 .aider.*
 
 data/
-templates/
-catalogs/
 repos/
+mounted/local-backstage/
+mounted/templates/
+mounted/documentation/
+mounted/cma-backstage/
 
 # Local Claude Code instructions (per-clone)
 CLAUDE.md

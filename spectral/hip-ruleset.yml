@@ -101,6 +101,26 @@ rules:
       field: x-api-type
       function: defined
 
+  # [B1-06b] API Information — x-api-type must be a valid HIP layer value
+  api-x-api-type-value-must-be-valid:
+    message: "BLOCK 1 | The x-api-type value '{{value}}' is not a valid HIP layer. Allowed: experience, process, system, technical, backend-intra-application, proxy-kong."
+    description: >
+      The x-api-type field must be one of the six HIP architecture layers.
+      Legacy values such as 'business' or 'integration' are not accepted — map to the closest layer.
+      Action: Replace with one of: experience | process | system | technical | backend-intra-application | proxy-kong.
+    severity: error
+    given: "$.info.x-api-type"
+    then:
+      function: enumeration
+      functionOptions:
+        values:
+          - experience
+          - process
+          - system
+          - technical
+          - backend-intra-application
+          - proxy-kong
+
   # [B1-07] API Information — x-contacts missing
   api-x-contacts-required:
     message: "BLOCK 1 | The x-contacts extension (api-lead & api-factory) is missing."
@@ -298,6 +318,19 @@ rules:
     given: "$.paths[*][get,post,put,patch,delete].responses"
     then:
       field: "500"
+      function: defined
+
+  # [B2-11] Endpoint — Missing standard HTTP responses (403)
+  operation-must-have-403:
+    message: "BLOCK 2 | Response 403 (Forbidden) is missing on this operation."
+    description: >
+      Each operation must document a 403 Forbidden response.
+      This response covers authorization failures after successful authentication (insufficient scope or role).
+      Action: Add a 403 response referencing the shared Fault schema.
+    severity: error
+    given: "$.paths[*][get,post,put,patch,delete].responses"
+    then:
+      field: "403"
       function: defined
 
   # ===========================================================================

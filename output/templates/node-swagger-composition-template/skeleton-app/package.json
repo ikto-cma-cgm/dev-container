@@ -7,7 +7,7 @@
     "node": "${{ values.nodeVersion }}"
   },
   "scripts": {
-{%- if values.repoProvider === 'github' %}
+{%- if values.repoProvider == 'github' %}
     "fetch-spec": "curl -fsSL -H \"Authorization: Bearer $GITHUB_TOKEN\" https://raw.githubusercontent.com/${{ values.repoOwner }}/${{ values.apiEntityName }}/main/openapi.yaml -o src/openapi.yaml",
 {%- else %}
     "fetch-spec": "curl -fsSL -H \"PRIVATE-TOKEN: $GITLAB_TOKEN\" https://${{ values.gitlabHost }}/${{ values.repoOwner }}/${{ values.apiEntityName }}/-/raw/main/openapi.yaml -o src/openapi.yaml",

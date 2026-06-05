@@ -316,10 +316,9 @@ spec:
   lifecycle: experimental
   owner: ${{ values.owner }}
   system: ${{ values.system }}
-  domain: ${{ values.domain }}
 ```
 
-spec.system and spec.domain are mandatory — without them the service is invisible in filtered Catalog views.
+`spec.system` is mandatory — without it the service is invisible in filtered Catalog views. Do NOT add `spec.domain`: it is not part of the Backstage Component spec and must not appear in the skeleton `catalog-info.yaml`. The `domain` template parameter is informational only.
 Remove Jenkins/SonarQube annotations if the provider said no in Group F.
 
 ### 3.6 — skeleton/README.md
@@ -472,7 +471,8 @@ Then run these checks. Report only problems:
 3. Tests validity: no missing import, no missing package entry, tests coherent with source code.
 4. 19-rule compliance: flag any violation.
 5. CMA CGM compliance in skeleton/catalog-info.yaml:
-    - spec.system and spec.domain present with ${{ values.xxx }}
+    - spec.system present with ${{ values.system }}
+    - spec.domain absent (not a valid Backstage Component field)
     - annotations.backstage.io/techdocs-ref: dir:.
     - lifecycle: experimental
     - metadata.links contains at least the repo link

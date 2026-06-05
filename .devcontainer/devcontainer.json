@@ -40,10 +40,12 @@
       }
     }
   },
-  // Monte catalogs et templates dans le workspace → visibles dans l'explorer VS Code.
+  // Monte local-backstage, templates et documentation sous mounted/ → regroupés dans l'explorer VS Code.
   "mounts": [
-    "source=${localWorkspaceFolder}/../catalogs,target=${containerWorkspaceFolder}/catalogs,type=bind,consistency=cached",
-    "source=${localWorkspaceFolder}/../templates,target=${containerWorkspaceFolder}/templates,type=bind,consistency=cached"
+    "source=${localWorkspaceFolder}/../catalogs,target=${containerWorkspaceFolder}/mounted/local-backstage,type=bind,consistency=cached",
+    "source=${localWorkspaceFolder}/../templates,target=${containerWorkspaceFolder}/mounted/templates,type=bind,consistency=cached",
+    "source=${localWorkspaceFolder}/../documentation,target=${containerWorkspaceFolder}/mounted/documentation,type=bind,consistency=cached",
+    "source=${localWorkspaceFolder}/../cma-backstage,target=${containerWorkspaceFolder}/mounted/cma-backstage,type=bind,consistency=cached"
   ],
   // Docker charge le .env directement dans l'environnement du container au démarrage.
   // GH_TOKEN devient ainsi une variable d'environnement container, sans dépendre du shell Mac.
