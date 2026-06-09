@@ -170,7 +170,7 @@ spec:
       name: Fetch Spring Boot base skeleton
       action: fetch:template
       input:
-        url: https://github.com/ikto-cma-cgm/backstage-templates/tree/main/springboot-template/skeleton?ref=v0.1.0
+        url: https://github.com/ikto-cma-cgm/backstage-templates/tree/main/springboot-template/skeleton?ref=v0.3.0
         values:
           name: ${{ parameters.name }}
           description: ${{ parameters.description }}
