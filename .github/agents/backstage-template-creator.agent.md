@@ -207,10 +207,32 @@ Before generating files, run this checklist internally. Fix any miss before proc
 - [ ] `catalog-info.yaml` contains both `spec.system` and `spec.domain` when required by Catalog placement standards
 - [ ] `catalog-info.yaml` has `jenkins.io/job-full-name` annotation
 - [ ] `catalog-info.yaml` has `sonarqube.org/project-key` annotation
-- [ ] Template is self-contained — `fetch:template` uses `url: ./skeleton`
-- [ ] No reference to another template's skeleton
+- [ ] **Unit templates**: `fetch:template` uses `url: ./skeleton` (self-contained)
+- [ ] **Composite templates**: remote base fetch(es) with `?ref=v<semver>` from `ikto-cma-cgm/backstage-templates` + local `skeleton-overlay/` — C01 must PASS
+- [ ] No reference to another template's skeleton via a local relative path (e.g. `../../other-template/skeleton`)
 - [ ] `repoProvider` and `repoOwner` parameters present (dual-provider pattern)
 - [ ] Output links use `||` operator to cover both GitHub and GitLab providers
+
+#### Composite template structure (Mode c — standard CMA CGM)
+
+For composite templates, the expected structure is:
+```
+<composite-template>/
+├── template.yaml               # steps: remote fetch(es) + local overlay(s)
+├── skeleton-overlay/           # delta files only vs base skeleton
+│   ├── catalog-info.yaml       # multi-doc: Component + Resource(s) + System
+│   ├── pom.xml / package.json  # composition-specific deps
+│   ├── README.md, mkdocs.yml, docs/
+│   └── src/ (composition-specific files only)
+└── skeleton-<role>-overlay/    # optional: for each secondary component
+    ├── catalog-info.yaml       # stub kind: Location
+    └── README.md
+```
+
+Remote base fetch URLs (pinned `?ref=v0.1.0`):
+- `node-template/skeleton` — Node.js Express + TypeScript
+- `springboot-template/skeleton` — Spring Boot + Maven
+- `springboot-liquibase-template/skeleton` — Liquibase migrations
 
 After review, output a brief checklist summary showing every rule as ✅ or 🔴 with a note if any need fixing.
 
@@ -244,6 +266,51 @@ After delivery, offer to:
 - Adjust skeleton content
 - Add custom steps
 - Regenerate the template name for a different language variant
+
+---
+
+## Phase 7 — Register template locally
+
+**Execute after file generation, before any other step.**
+
+This phase updates the two registry files so the template is immediately visible in the local Backstage instance.
+
+### 7.1 — Update catalog.yaml
+
+Edit `/workspaces/dev-container/catalog.yaml`.
+
+Add the new template under the correct comment (`# Unitaires` or `# Composites`):
+```yaml
+    - ./output/templates/<template-name>/template.yaml
+```
+
+### 7.2 — Update app-config.yaml
+
+Edit `/workspaces/dev-container/mounted/local-backstage/app-config.yaml`.
+
+Find the section `# === OUTPUT TEMPLATES (générés dans le dev-container) ===`.
+
+Add a new `type: file` entry under `# Unitaires` or `# Composites`:
+```yaml
+    - type: file
+      target: /app/dev-container/output/templates/<template-name>/template.yaml
+      rules:
+        - allow: [Template]
+```
+
+### 7.3 — Report to user
+
+After both edits:
+
+"**Enregistrement local effectué.**
+
+Pour voir le template dans Backstage, redémarre le container depuis ton terminal hôte dans le dossier `catalogs/` :
+
+```bash
+docker compose restart backstage
+```
+
+Le template **<template-name>** sera visible dans http://localhost:7007/create."
 
 ---
 

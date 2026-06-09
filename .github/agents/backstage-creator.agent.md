@@ -458,6 +458,49 @@ After generating template.yaml, verify that every ${{ values.xxx }} across all s
 
 Applied rules: R01–R19, C01–C05 (for composable templates), ADR-R1, ADR-R3.
 
+### Composite templates — Remote fetch + overlay pattern
+
+**All composition templates at CMA CGM use Mode (c): remote base fetch + local overlay.**
+
+When creating a composite template:
+
+1. **DO NOT create a `skeleton-app/`** with all files — this duplicates the base template and breaks C01.
+
+2. **Reference the base skeleton remotely** from `ikto-cma-cgm/backstage-templates`, pinned to a SemVer tag:
+   ```yaml
+   - id: fetch-<base>-skeleton
+     action: fetch:template
+     input:
+       url: https://github.com/ikto-cma-cgm/backstage-templates/tree/main/<base-template>/skeleton?ref=v0.1.0
+       values: {...base params...}
+   ```
+
+3. **Create `skeleton-overlay/`** with only the delta files — files that differ from or don't exist in the base skeleton:
+   - `catalog-info.yaml` (multi-doc: Component + Resource(s) + System)
+   - `pom.xml` / `package.json` (composition-specific deps)
+   - `README.md`, `mkdocs.yml`, `docs/` (composition docs)
+   - Source files specific to the composition
+   - **NOT** files identical to the base (e.g. `application.yml`, `.gitignore`)
+
+4. **Apply the overlay** as a second step:
+   ```yaml
+   - id: fetch-app-overlay
+     action: fetch:template
+     input:
+       url: ./skeleton-overlay
+       targetPath: .
+       values: {...all params including composition-specific ones...}
+   ```
+
+5. For **secondary components** (e.g. Liquibase): add a remote base fetch with `targetPath`, then a `skeleton-<role>-overlay/` with only `catalog-info.yaml` (stub `kind: Location`) and `README.md`.
+
+Available bases in `ikto-cma-cgm/backstage-templates@v0.1.0`:
+- `node-template/skeleton` — Node.js Express + TypeScript
+- `springboot-template/skeleton` — Spring Boot + Maven
+- `springboot-liquibase-template/skeleton` — Liquibase migrations
+
+C01 **must PASS** (not SKIP) for any template with remote fetches. SKIP is only valid for fully local unit templates.
+
 ---
 
 ## Phase 5 — Verification
@@ -488,7 +531,67 @@ In Backstage: Actions -> Validate My Template -> paste the template folder URL."
 
 ---
 
-## Phase 6 — Initialize template Git repo
+## Phase 6 — Register template locally (catalog.yaml + app-config.yaml)
+
+**Execute this phase before pushing to GitHub.** This makes the template immediately visible in the local Backstage instance.
+
+### 6.1 — Update catalog.yaml
+
+Edit `/workspaces/dev-container/catalog.yaml`.
+
+Determine the category of the new template:
+- Unit template → add under the `# Unitaires` comment
+- Composite template → add under the `# Composites` comment
+
+Add the line:
+```yaml
+    - ./output/templates/<template-name>/template.yaml
+```
+
+Example for a new unit template `my-service-template`:
+```yaml
+spec:
+  targets:
+    # Unitaires
+    - ./output/templates/node-template/template.yaml
+    - ./output/templates/my-service-template/template.yaml   # ← added line
+```
+
+### 6.2 — Update app-config.yaml
+
+Edit `/workspaces/dev-container/mounted/local-backstage/app-config.yaml`.
+
+Find the section `# === OUTPUT TEMPLATES (générés dans le dev-container) ===`.
+
+Add a new entry under the correct sub-comment (`# Unitaires` or `# Composites`):
+```yaml
+    - type: file
+      target: /app/dev-container/output/templates/<template-name>/template.yaml
+      rules:
+        - allow: [Template]
+```
+
+### 6.3 — Verify both files were updated
+
+After editing, confirm:
+- `catalog.yaml` contains `./output/templates/<template-name>/template.yaml`
+- `app-config.yaml` contains `/app/dev-container/output/templates/<template-name>/template.yaml`
+
+Then instruct the user:
+
+"**Les deux fichiers de registre ont été mis à jour.**
+
+Pour que le template apparaisse dans Backstage, redémarre le container depuis ton terminal hôte dans le dossier `catalogs/` :
+
+```bash
+docker compose restart backstage
+```
+
+Le template **<template-name>** sera visible dans http://localhost:7007/create dans quelques secondes."
+
+---
+
+## Phase 7 — Initialize template Git repo
 
 Run these commands in the template directory:
 
@@ -514,17 +617,15 @@ git push -u origin main
 ```
 
 After push, report: "Template published at: https://github.com/<org>/<template-name>
-This URL is required for EUP registration. The local Backstage instance will detect the template via the dev container in approximately 2 minutes."
+This URL is required for EUP registration."
 
 ---
 
-## Phase 7 — Local Backstage test
+## Phase 8 — Local Backstage test
 
 Report to the user:
 
-"Template ready for local testing.
-
-The dev container is connected to the local Backstage instance. The template appears automatically in the Create UI in approximately 2 minutes.
+"Template enregistré et Backstage redémarré.
 
 Open: http://localhost:7007/create
 Find <template-name> in the gallery and execute it with real inputs.
@@ -537,7 +638,7 @@ Checklist:
 - Service appears in the Catalog at http://localhost:7007/catalog
 - Docs tab displays the generated TechDocs
 
-If anything fails, fix in the dev container — the template updates automatically in Backstage."
+If anything fails, fix in the dev container — restart Backstage after any app-config.yaml change."
 
 ---
 

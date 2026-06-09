@@ -170,14 +170,14 @@ Template qui assemble plusieurs composants en un seul dépôt et produit plusieu
 
 ### Composition modes
 
-Two modes are supported for handling secondary assets in a composite. Choose per-template based on coupling and lifecycle needs.
+Three modes are supported. Choose based on reuse strategy and lifecycle needs.
 
-**Mode (a) — Embedded** : the secondary assets are pre-merged inside `skeleton-app/` at template authoring time. Only `skeleton-app/` is referenced by `fetch:template`. No `skeleton-<role>/` directory.
+**Mode (a) — Embedded** : secondary assets pre-merged inside `skeleton-app/`. Single local fetch. No `skeleton-<role>/`.
 
-- Pros: single fetch step, no path coordination, simpler
-- Cons: secondary asset cannot be reused independently; all changes go through `skeleton-app/`
+- Pros: simple, single fetch step
+- Cons: not reusable; all changes go through `skeleton-app/`
 
-**Mode (b) — Separate skeletons** : each `skeleton-<role>/` is referenced by its own `fetch:template` step, with a dedicated `targetPath` placing it in the generated repo.
+**Mode (b) — Separate local skeletons** : each `skeleton-<role>/` fetched with its own `fetch:template` step and a `targetPath`.
 
 ```yaml
 steps:
@@ -194,10 +194,56 @@ steps:
       values: {...}
 ```
 
-- Pros: secondary asset has its own README/lifecycle; assets can be relocated in the scaffolded repo independently; closer to a true modular composite
-- Cons: extra fetch step per asset; catalog entities still need to be coordinated (avoid same `metadata.name` collision)
+- Pros: secondary asset has its own lifecycle; modular
+- Cons: no cross-template code reuse; still duplicates base boilerplate
 
-Catalog registration remains driven by a **single root** `catalog-info.yaml` (multi-doc when more than one entity is needed). The `catalog-info.yaml` inside `skeleton-<role>/` is typically an inert linter-compliance stub (`kind: Location` with empty `targets`) — see e.g. `springboot-liquibase-composition-template/skeleton-liquibase/catalog-info.yaml`.
+**Mode (c) — Remote base fetch + local overlay ✅ Standard CMA CGM** : the base skeleton is fetched from a versioned remote repo (`ikto-cma-cgm/backstage-templates`), and a local `skeleton-overlay/` provides only the delta files specific to the composition.
+
+```yaml
+steps:
+  - id: fetch-<base>-skeleton
+    action: fetch:template
+    input:
+      url: https://github.com/ikto-cma-cgm/backstage-templates/tree/main/<base-template>/skeleton?ref=v0.1.0
+      values: {...base values...}
+
+  - id: fetch-<role>-overlay          # optional: secondary component base (e.g. liquibase)
+    action: fetch:template
+    input:
+      url: https://github.com/ikto-cma-cgm/backstage-templates/tree/main/<role-template>/skeleton?ref=v0.1.0
+      targetPath: ./<dedicated/path>
+      values: {...role values...}
+
+  - id: fetch-app-overlay
+    action: fetch:template
+    input:
+      url: ./skeleton-overlay
+      targetPath: .
+      values: {...full values including composition-specific ones...}
+
+  - id: fetch-<role>-overlay          # optional: delta for secondary component
+    action: fetch:template
+    input:
+      url: ./skeleton-<role>-overlay
+      targetPath: ./<dedicated/path>
+      values: {...}
+```
+
+- Pros: inherits base updates automatically on re-tag; `skeleton-overlay/` is minimal (only delta files); C01 PASS with pinned `?ref=v0.1.0`
+- Cons: requires the base template to be published in `backstage-templates` repo first
+
+**`skeleton-overlay/`** contains only the files that differ from the base skeleton:
+- `catalog-info.yaml` (multi-doc: Component + optional Resource + System)
+- `pom.xml` / `package.json` (composition-specific deps and plugins)
+- `README.md`, `mkdocs.yml`, `docs/` (composition-specific documentation)
+- Any source files specific to the composition (e.g. `src/api/openapi.yaml`, generated types handler)
+- **Excludes** files identical to the base (e.g. `application.yml`, `.gitignore`)
+
+**`skeleton-<role>-overlay/`** (for secondary components) typically contains only:
+- `catalog-info.yaml` (stub `kind: Location` or proper entity)
+- `README.md`
+
+Catalog registration is driven by a **single root** `catalog-info.yaml` (multi-doc when more than one entity). The `catalog-info.yaml` inside secondary overlays is a linter-compliance stub (`kind: Location` with empty `targets`).
 
 ### catalog-info.yaml — Multi-doc
 
@@ -248,9 +294,9 @@ spec:
 
 | Aspect | Unit | Composite |
 |---|---|---|
-| Skeleton dirs | 1 (`skeleton/`) | 1 main (`skeleton-app/`) + 0–N secondary (`skeleton-<role>/`) |
-| fetch:template | 1 step | 1 step per skeleton dir (modes (a) embedded or (b) separate — see §3) |
-| catalog-info.yaml | 1 Component | Component (+ optional Resource(s) as multi-doc `---`) at the root; stubs in secondary skeletons |
+| Skeleton dirs | 1 (`skeleton/`) | 1+ remote base(s) + `skeleton-overlay/` + optional `skeleton-<role>-overlay/` |
+| fetch:template | 1 step | 2–4 steps: remote base(s) then local overlay(s) (Mode c — standard) |
+| catalog-info.yaml | 1 Component | Component (+ Resource(s) multi-doc `---`) in overlay; stubs in secondary overlays |
 | dependsOn | Absent | Present when Resource(s) are declared (Component → Resource) |
 | Pipeline | Single | Single (main service pipeline) |
 | Parameters | Type-specific | Unified across components |
@@ -288,10 +334,12 @@ key: value-b
 
 ### Pour un template composite
 - [ ] Tout ce qui précède, PLUS :
-- [ ] `skeleton-app/` contient le skeleton principal (le service runtime)
-- [ ] Mode de composition explicite : **(a) embedded** (assets secondaires fusionnés dans `skeleton-app/`) ou **(b) separate** (un `skeleton-<role>/` par asset secondaire + un `fetch:template` dédié avec `targetPath`) — voir §3
-- [ ] Pour le mode (b) : chaque `skeleton-<role>/` contient `catalog-info.yaml` + `README.md` (R12, R15) ; le `catalog-info.yaml` est un stub `kind: Location` si l'asset n'a pas sa propre entité
-- [ ] `catalog-info.yaml` racine multi-doc avec `---` si plusieurs entités à enregistrer (Component + Resource(s))
+- [ ] Mode de composition : **(c) Remote fetch + overlay** (standard CMA CGM — voir §3)
+- [ ] Step `fetch-<base>-skeleton` → URL remote pinned `?ref=v0.1.0` sur `ikto-cma-cgm/backstage-templates`
+- [ ] `skeleton-overlay/` contient uniquement les fichiers delta (catalog-info, pom.xml/package.json, docs, src spécifiques)
+- [ ] Pour chaque composant secondaire : step remote fetch `?ref=v0.1.0` + `skeleton-<role>-overlay/` avec stub catalog-info et README
+- [ ] `catalog-info.yaml` racine multi-doc avec `---` si plusieurs entités (Component + Resource(s))
 - [ ] `dependsOn` sur le Component vers chaque Resource déclarée
 - [ ] Paramètres unifiés couvrant tous les composants
-- [ ] `README.md` mentionne tous les composants intégrés et leur mode de composition
+- [ ] C01 doit PASSER (pas SKIP) grâce aux refs pinned `?ref=v0.1.0`
+- [ ] `README.md` mentionne tous les composants intégrés et leur stratégie de composition

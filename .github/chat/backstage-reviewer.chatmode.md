@@ -132,7 +132,7 @@ Pour R16, vérifie aussi les typos courants :
 
 ---
 
-### Groupe 4 — Steps (R17–R19)
+### Groupe 4 — Steps (R17–R19) et Composable (C01–C05)
 
 ```
 ✓ R17 — tous les step IDs suivent le format verb-object ✓
@@ -145,6 +145,31 @@ Pour R17 si FAIL :
 
 Pour R19 si FAIL :
 > "**R19** : le bloc `output.text` affiche un message après scaffolding. C'est l'occasion de guider le développeur : clone le repo, lance `npm install`, configure les secrets, etc. Sans ça, il voit une page de succès vide et ne sait pas par où commencer."
+
+#### Audit C01 — Refs pinned (templates composites uniquement)
+
+Pour les templates composites, vérifier que chaque URL `fetch:template` distante est pinned sur une ref immuable.
+
+**Pattern valide (C01 PASS)** :
+```yaml
+url: https://github.com/ikto-cma-cgm/backstage-templates/tree/main/<base>/skeleton?ref=v0.1.0
+```
+
+Le `?ref=v0.1.0` doit être un tag SemVer — jamais `main`, `master`, ou un nom de branche.
+
+**Repo officiel des bases** : `ikto-cma-cgm/backstage-templates` — bases disponibles : `node-template/skeleton`, `springboot-template/skeleton`, `springboot-liquibase-template/skeleton`.
+
+```
+✓ C01 — fetch-springboot-skeleton pinned sur ?ref=v0.1.0 ✓
+✗ C01 — fetch-node-skeleton utilise ?ref=main — FAIL (non immuable)
+○ C01 — SKIP (template unitaire, pas de remote fetch)
+```
+
+Si C01 FAIL :
+> "**C01** : une URL pointant vers `main` récupère le HEAD du moment — le contenu change silencieusement. Un tag SemVer (`?ref=v0.1.0`) est immuable."
+
+Si C01 SKIP (template unitaire, `url: ./skeleton`) :
+> "**C01** : SKIP — fetch local uniquement. Attendu pour un template unitaire."
 
 ---
 
