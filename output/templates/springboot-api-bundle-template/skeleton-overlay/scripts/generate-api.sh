@@ -9,15 +9,27 @@ SRC_MAIN_JAVA="src/main/java"
 echo "▶ Generating sources from src/main/resources/api/openapi.yaml …"
 mvn generate-sources -q
 
-echo "▶ Copying generated sources to ${SRC_MAIN_JAVA} …"
+echo "▶ Checking generated sources …"
 if [ ! -d "${GENERATED_SOURCES}" ]; then
   echo "❌ Generated sources not found at ${GENERATED_SOURCES}. Did mvn generate-sources succeed?"
   exit 1
 fi
+
+echo "▶ Saving Application.java …"
+APP_JAVA=$(find "${SRC_MAIN_JAVA}" -name "Application.java" | head -1)
+TMP_APP=$(mktemp)
+cp "${APP_JAVA}" "${TMP_APP}"
+APP_RELATIVE="${APP_JAVA#${SRC_MAIN_JAVA}/}"
+
+echo "▶ Replacing ${SRC_MAIN_JAVA} with generated sources …"
+rm -rf "${SRC_MAIN_JAVA:?}"
+mkdir -p "${SRC_MAIN_JAVA}"
 cp -r "${GENERATED_SOURCES}/." "${SRC_MAIN_JAVA}/"
 
-echo "▶ Removing placeholder stubs …"
-rm -rf "${SRC_MAIN_JAVA}/com/example/service"
+echo "▶ Restoring Application.java …"
+mkdir -p "${SRC_MAIN_JAVA}/$(dirname "${APP_RELATIVE}")"
+cp "${TMP_APP}" "${SRC_MAIN_JAVA}/${APP_RELATIVE}"
+rm "${TMP_APP}"
 
 echo "▶ Removing openapi-generator-maven-plugin from pom.xml …"
 python3 - <<'EOF'
