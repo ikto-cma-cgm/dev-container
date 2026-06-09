@@ -133,7 +133,7 @@ spec:
       name: Fetch Spring Boot base skeleton
       action: fetch:template
       input:
-        url: https://github.com/ikto-cma-cgm/backstage-templates/tree/main/springboot-template/skeleton?ref=v0.1.0
+        url: https://github.com/ikto-cma-cgm/backstage-templates/tree/main/springboot-template/skeleton?ref=HEAD
         values:
           name: ${{ parameters.name }}
           description: ${{ parameters.description }}
@@ -157,7 +157,7 @@ spec:
       name: Fetch Liquibase base skeleton
       action: fetch:template
       input:
-        url: https://github.com/ikto-cma-cgm/backstage-templates/tree/main/springboot-liquibase-template/skeleton?ref=v0.1.0
+        url: https://github.com/ikto-cma-cgm/backstage-templates/tree/main/springboot-liquibase-template/skeleton?ref=HEAD
         targetPath: ./db
         values:
           name: ${{ parameters.name }}

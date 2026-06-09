@@ -149,7 +149,7 @@ spec:
       name: Fetch Node.js base skeleton
       action: fetch:template
       input:
-        url: https://github.com/ikto-cma-cgm/backstage-templates/tree/main/node-template/skeleton?ref=v0.1.0
+        url: https://github.com/ikto-cma-cgm/backstage-templates/tree/main/node-template/skeleton?ref=HEAD
         values:
           name: ${{ parameters.name }}
           description: ${{ parameters.description }}
