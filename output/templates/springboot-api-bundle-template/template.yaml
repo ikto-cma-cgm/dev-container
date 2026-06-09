@@ -173,6 +173,8 @@ spec:
           apiRef: ${{ parameters.apiRef }}
           apiEntityName: ${{ parameters.apiRef.split('/')[1] }}
           apiSpecContent: ${{ steps['fetch-api-entity'].output.entity.spec.definition }}
+
+    - id: publish-github
       name: Publish on GitHub
       if: ${{ parameters.repoProvider === 'github' }}
       action: publish:github
