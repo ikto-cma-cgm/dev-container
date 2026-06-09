@@ -1,24 +1,43 @@
-# Node.js Microservice with OpenAPI Spec Template
+# Node.js Microservice with OpenAPI Spec
 
-Ce template génère un microservice Node.js TypeScript piloté par une spécification OpenAPI distante, avec les métadonnées HIP pour la gouvernance API.
+Scaffolds a Node.js Express microservice wired to an existing OpenAPI spec entity, with openapi-backend for spec-first request routing and validation.
 
-## Ce qui est généré
+## Composition strategy
 
-- un service Express prêt pour du contract-first
-- une entité `Component` et une entité `API` dans le Catalog avec annotations HIP
-- un script de récupération de la spécification distante
-- une génération de code serveur via OpenAPI Generator
-- les fichiers TechDocs et Docker
+This template is a **composable orchestrator** using the remote fetch strategy (C01 compliant):
 
-## Utilisation
+| Step | Source | Pinned ref |
+|---|---|---|
+| `fetch-node-skeleton` | `node-template/skeleton` | `node-template/v0.1.0` (GitHub tag) |
+| `fetch-openapi-overlay` | `./skeleton-overlay` | Local delta — openapi-backend wiring |
 
-1. fournissez une URL OpenAPI accessible publiquement
-2. renseignez le nom, la description, l'owner et le system
-3. renseignez les métadonnées HIP (api-type, HOPEX code, etc.)
-4. choisissez GitHub ou GitLab comme plateforme de publication
-5. exécutez `npm run build` dans le dépôt généré pour télécharger la spec et générer le code serveur (dans `src/openapi-generated/`)
+The base Node.js structure (Dockerfile, tsconfig, .gitignore, docs scaffolding) is **reused** from the canonical `node-template` via its published tag. Only the openapi-backend delta is maintained locally in this template.
 
-## Lien avec swagger-template
+## Prerequisites
 
-Ce template est la composition Node.js + OpenAPI du `swagger-template` unitaire.
-Pour gérer le contrat API indépendamment du service, utilisez `swagger-template` à la place.
+Before running this template, create the API entity using the **OpenAPI Specification** template (`swagger-template`). The resulting `kind: API` entity will be selectable in the `apiRef` parameter.
+
+## What is generated
+
+```
+<name>/
+├── catalog-info.yaml     # Component (Node service) + System
+├── src/
+│   ├── index.ts          # Express + openapi-backend routing
+│   ├── api/
+│   │   └── openapi.yaml  # Spec placeholder — replace with real spec
+│   └── handlers/
+│       └── index.ts      # One export per operationId
+├── package.json          # Includes openapi-backend
+├── Dockerfile            # Multi-stage, copies spec into image
+├── tsconfig.json         # From node-template base
+└── ...                   # Standard Node.js project files
+```
+
+## Catalog relations produced
+
+```
+System: <system>
+  └── Component: <name>  (providesApis → API: <apiRef>)
+                         (dependsOn    → API: <apiRef>)
+```

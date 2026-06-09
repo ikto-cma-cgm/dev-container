@@ -3,7 +3,7 @@ kind: Template
 metadata:
   name: node-swagger-composition-template
   title: Node.js Microservice with OpenAPI Spec
-  description: Scaffolds a Node.js Express microservice with an embedded OpenAPI spec, TypeScript, Docker and Backstage API catalog integration.
+  description: Scaffolds a Node.js Express microservice wired to an existing OpenAPI spec entity, with openapi-backend for spec-first request routing and validation.
   annotations:
     simpleicons.org/icon-slug: nodedotjs
     backstage.io/techdocs-ref: dir:.
@@ -59,7 +59,7 @@ spec:
           ui:options:
             catalogFilter:
               - kind: API
-          ui:help: 'Entité API existante dans le Catalog (créée via le template OpenAPI Specification). La spec OpenAPI sera récupérée depuis le repo associé.'
+          ui:help: 'Entité API existante dans le Catalog (créée via le template OpenAPI Specification). La spec OpenAPI embarquée sera un placeholder — remplacez-la par votre spec réelle après scaffold.'
 
     - title: Node.js configuration
       properties:
@@ -145,11 +145,29 @@ spec:
               required: [gitlabHost]
 
   steps:
-    - id: fetch-skeleton-app
-      name: Fetch application skeleton
+    - id: fetch-node-skeleton
+      name: Fetch Node.js base skeleton
       action: fetch:template
       input:
-        url: ./skeleton-app
+        url: https://github.com/ikto-cma-cgm/backstage-templates/tree/main/node-template/skeleton?ref=v0.1.0
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          system: ${{ parameters.system }}
+          domain: ${{ parameters.domain }}
+          nodeVersion: ${{ parameters.nodeVersion }}
+          port: ${{ parameters.port }}
+          repoProvider: ${{ parameters.repoProvider }}
+          repoOwner: ${{ parameters.repoOwner }}
+          gitlabHost: ${{ parameters.gitlabHost }}
+
+    - id: fetch-openapi-overlay
+      name: Fetch OpenAPI overlay
+      action: fetch:template
+      input:
+        url: ./skeleton-overlay
+        targetPath: .
         values:
           name: ${{ parameters.name }}
           description: ${{ parameters.description }}
@@ -157,7 +175,7 @@ spec:
           system: ${{ parameters.system }}
           domain: ${{ parameters.domain }}
           apiRef: ${{ parameters.apiRef }}
-          apiEntityName: ${{ parameters.apiRef.split('/')[1] }}
+          apiEntityName: ${{ parameters.apiRef | replace('api:', '') | replace('default/', '') }}
           nodeVersion: ${{ parameters.nodeVersion }}
           port: ${{ parameters.port }}
           apiType: ${{ parameters.apiType }}
@@ -212,9 +230,10 @@ spec:
     text:
       - title: Next Steps
         content: |
-          Service **${{ parameters.name }}** créé avec succès.
+          Service **${{ parameters.name }}** scaffoldé avec succès.
           1. Clone : `git clone ${{ steps['publish-github'].output.remoteUrl || steps['publish-gitlab'].output.remoteUrl }}`
-          2. Générez l'API : `npm run build` (télécharge la spec et génère le code serveur)
-          3. Lancez localement : `npm run dev`
-          4. Vérifiez la santé : `curl http://localhost:${{ parameters.port }}/health`
-          5. Implémentez les routes générées dans `src/openapi-generated/`
+          2. Remplacez `src/api/openapi.yaml` par votre spec réelle (depuis `${{ parameters.apiRef }}`)
+          3. Implémentez les handlers dans `src/handlers/index.ts` — un export par `operationId`
+          4. Install & démarrage : `npm install && npm run dev`
+          5. Santé : `curl http://localhost:${{ parameters.port }}/health`
+          6. Le pipeline CI démarre automatiquement au premier push
