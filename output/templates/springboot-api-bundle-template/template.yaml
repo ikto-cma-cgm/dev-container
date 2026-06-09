@@ -49,6 +49,18 @@ spec:
           type: string
           ui:help: 'Domain métier. Ex: finance, shipping, platform'
 
+    - title: API specification
+      required: [apiRef]
+      properties:
+        apiRef:
+          title: API entity
+          type: string
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              - kind: API
+          ui:help: 'Entité API existante dans le Catalog (créée via le template OpenAPI Specification). Sa spec sera embarquée dans le service.'
+
     - title: Java configuration
       required: [packageName]
       properties:
@@ -131,6 +143,12 @@ spec:
           repoOwner: ${{ parameters.repoOwner }}
           gitlabHost: ${{ parameters.gitlabHost }}
 
+    - id: fetch-api-entity
+      name: Fetch API entity from Catalog
+      action: catalog:fetch
+      input:
+        entityRef: ${{ parameters.apiRef }}
+
     - id: fetch-api-overlay
       name: Fetch API overlay
       action: fetch:template
@@ -152,8 +170,9 @@ spec:
           repoProvider: ${{ parameters.repoProvider }}
           repoOwner: ${{ parameters.repoOwner }}
           gitlabHost: ${{ parameters.gitlabHost }}
-
-    - id: publish-github
+          apiRef: ${{ parameters.apiRef }}
+          apiEntityName: ${{ parameters.apiRef.split('/')[1] }}
+          apiSpecContent: ${{ steps['fetch-api-entity'].output.entity.spec.definition }}
       name: Publish on GitHub
       if: ${{ parameters.repoProvider === 'github' }}
       action: publish:github

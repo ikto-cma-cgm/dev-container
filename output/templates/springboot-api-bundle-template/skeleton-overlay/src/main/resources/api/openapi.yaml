@@ -1,17 +1,5 @@
-openapi: "3.0.3"
-info:
-  title: ${{ values.name }} API
-  version: "1.0.0"
-  description: ${{ values.description }}
-  contact:
-    name: ${{ values.owner }}
-  x-api-type: system
-tags:
-  - name: health
-    description: Health check endpoints
-  - name: resources
-    description: Resource management
-paths:
+${{ values.apiSpecContent | safe }}
+
   /health:
     get:
       tags: [health]
