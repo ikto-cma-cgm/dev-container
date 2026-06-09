@@ -13,5 +13,5 @@ spec:
     - ./output/templates/swagger-template/template.yaml
     # Composites
     - ./output/templates/node-swagger-composition-template/template.yaml
-    - ./output/templates/springboot-swagger-composition-template/template.yaml
     - ./output/templates/springboot-liquibase-composition-template/template.yaml
+    - ./output/templates/springboot-api-bundle-template/template.yaml
