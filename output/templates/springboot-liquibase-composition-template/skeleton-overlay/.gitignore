@@ -1,6 +1,0 @@
-target/
-.idea/
-*.class
-*.jar
-.DS_Store
-.env
