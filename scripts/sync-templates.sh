@@ -18,7 +18,7 @@ if [[ -z "${TEMPLATES_REPO_URL:-}" ]]; then
   exit 1
 fi
 
-TEMPLATES_DIR="$ROOT_DIR/mounted/templates"
+TEMPLATES_DIR="$ROOT_DIR/../templates"
 
 if [[ -d "$TEMPLATES_DIR/.git" ]]; then
   echo "Mise à jour des templates depuis $TEMPLATES_REPO_URL..."

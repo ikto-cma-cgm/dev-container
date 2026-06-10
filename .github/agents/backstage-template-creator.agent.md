@@ -304,7 +304,7 @@ After both edits:
 
 "**Enregistrement local effectué.**
 
-Pour voir le template dans Backstage, redémarre le container depuis ton terminal hôte dans le dossier `catalogs/` :
+Pour voir le template dans Backstage, redémarre le container depuis ton terminal hôte dans le dossier `backstage/` :
 
 ```bash
 docker compose restart backstage

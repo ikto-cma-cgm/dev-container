@@ -1,17 +1,9 @@
 apiVersion: backstage.io/v1alpha1
 kind: Location
 metadata:
-  name: dev-container-templates
+  name: dev-container-root
   namespace: default
-  description: Templates générés par le dev container CMA CGM
+  description: Point d'entrée du Catalog CMA CGM — dev container
 spec:
   targets:
-    # Unitaires
-    - ./output/templates/node-template/template.yaml
-    - ./output/templates/springboot-template/template.yaml
-    - ./output/templates/springboot-liquibase-template/template.yaml
-    - ./output/templates/swagger-template/template.yaml
-    # Composites
-    - ./output/templates/node-swagger-composition-template/template.yaml
-    - ./output/templates/springboot-liquibase-composition-template/template.yaml
-    - ./output/templates/springboot-api-bundle-template/template.yaml
+    - ./mounted/templates/catalog.yaml

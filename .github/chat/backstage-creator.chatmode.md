@@ -576,7 +576,7 @@ Then instruct the user:
 
 "**Les deux fichiers de registre ont été mis à jour.**
 
-Pour que le template apparaisse dans Backstage, redémarre le container depuis ton terminal hôte dans le dossier `catalogs/` :
+Pour que le template apparaisse dans Backstage, redémarre le container depuis ton terminal hôte dans le dossier `backstage/` :
 
 ```bash
 docker compose restart backstage

@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "../../templates"
+		},
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../backstage"
+		},
+		{
+			"path": "../../documentation"
+		},
+		{
+			"path": "../../generated-services"
+		}
+	],
+	"settings": {}
+}
